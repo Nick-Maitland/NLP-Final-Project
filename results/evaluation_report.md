@@ -10,7 +10,7 @@
 - Faithfulness average: 0.85
 - Citation valid rate: 1.00
 - Abstention accuracy (unanswerable): 0.67
-- Average latency (ms): 0.89
+- Average latency (ms): 0.90
 - Median latency (ms): 0.88
 
 ## Topic Breakdown
