@@ -39,8 +39,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
+markers = [
+  "optional_dense: runtime checks that require optional dense dependencies and should skip gracefully when unavailable",
+]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-

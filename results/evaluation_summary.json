@@ -7,8 +7,8 @@
   "faithfulness_avg": 0.85,
   "citation_valid_rate": 1.0,
   "abstention_accuracy_unanswerable": 0.67,
-  "avg_latency_ms": 5.32,
-  "median_latency_ms": 2.23,
+  "avg_latency_ms": 0.89,
+  "median_latency_ms": 0.88,
   "per_topic": {
     "attention": {
       "question_count": 3,

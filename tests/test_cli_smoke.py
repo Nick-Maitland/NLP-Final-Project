@@ -58,10 +58,14 @@ def prepare_temp_root(tmp_path: Path) -> Path:
 
 
 def run_cli(*args: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    command_env = env.copy()
+    command_env.setdefault("HF_HUB_OFFLINE", "1")
+    command_env.setdefault("TRANSFORMERS_OFFLINE", "1")
+    command_env.setdefault("TOKENIZERS_PARALLELISM", "false")
     return subprocess.run(
         [sys.executable, "rag_system.py", *args],
         cwd=REPO_ROOT,
-        env=env,
+        env=command_env,
         capture_output=True,
         text=True,
         check=False,

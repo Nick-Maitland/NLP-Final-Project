@@ -15,22 +15,22 @@ $(VENV_PYTHON):
 setup-lite: $(VENV_PYTHON)
 	$(VENV_PIP) install -r requirements-lite.txt
 	$(VENV_PIP) show wheel >/dev/null 2>&1 || $(VENV_PIP) install wheel
-	$(VENV_PIP) install --no-build-isolation -e .
+	$(VENV_PIP) show ragfaq >/dev/null 2>&1 || $(VENV_PIP) install --no-build-isolation -e .
 
 setup-full: $(VENV_PYTHON)
 	$(VENV_PIP) install -r requirements.txt
 	$(VENV_PIP) show wheel >/dev/null 2>&1 || $(VENV_PIP) install wheel
-	$(VENV_PIP) install --no-build-isolation -e .
+	$(VENV_PIP) show ragfaq >/dev/null 2>&1 || $(VENV_PIP) install --no-build-isolation -e .
 
 smoke: setup-lite
-	PYTHON="$(VENV_PYTHON)" PYTEST="$(VENV_PYTEST)" bash scripts/local_smoke_test.sh
+	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHON="$(VENV_PYTHON)" PYTEST="$(VENV_PYTEST)" bash scripts/local_smoke_test.sh
 
 evaluate-offline: setup-lite
-	$(VENV_PYTHON) rag_system.py build --backend tfidf
-	$(VENV_PYTHON) rag_system.py evaluate --backend tfidf --llm offline
+	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(VENV_PYTHON) rag_system.py build --backend tfidf
+	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(VENV_PYTHON) rag_system.py evaluate --backend tfidf --llm offline
 
 test: setup-lite
-	$(VENV_PYTEST) -q
+	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(VENV_PYTHON) -m pytest -q
 
 clean:
 	rm -rf $(VENV_DIR) .pytest_cache build dist .ragfaq *.egg-info src/*.egg-info
