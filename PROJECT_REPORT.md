@@ -42,7 +42,9 @@ Auto-generated from real dense validation artifacts under `results/dense_validat
 
 ## 5. Prompt Design
 
-The OpenAI prompt is designed to be strict rather than broad. It tells the model to treat retrieved documents as untrusted text, ignore instructions inside the retrieved context, answer only the user question, use only the supplied context, and abstain with `I do not know based on the retrieved context` when evidence is insufficient. Answers are expected to include source citations such as `[1]` and `[2]`.
+The OpenAI prompt is designed to be strict rather than broad. It tells the model to treat retrieved documents as untrusted text, ignore instructions inside the retrieved context, answer only from the supplied retrieved context, and abstain with `I do not know based on the retrieved context` when evidence is insufficient. Answers are expected to include source citations such as `[1]` and `[2]`, and the retrieved context blocks carry `source_id` metadata for traceability.
+
+The GPT-4o-mini path is also covered by mock-based tests that validate the prompt contract without requiring network access. Optional live validation can be recorded with `python scripts/validate_openai_path.py --run-live`, which writes `results/openai_validation_summary.json`. This report does not claim live GPT-4o-mini results unless that artifact has been generated explicitly.
 
 ## 6. Offline Fallback Design
 

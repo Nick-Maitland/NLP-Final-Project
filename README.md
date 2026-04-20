@@ -116,6 +116,30 @@ python scripts/audit_submission.py
 
 This workflow does not require `OPENAI_API_KEY`, ChromaDB, `sentence-transformers`, or model downloads.
 
+## Optional GPT-4o-mini Live Validation
+
+The repository includes a small validation script for the GPT-4o-mini generation path:
+
+```bash
+python scripts/validate_openai_path.py
+make validate-openai
+```
+
+By default, this script does not call OpenAI. It writes `results/openai_validation_summary.json` and records a skip status instead:
+
+- `skipped_no_api_key` when `OPENAI_API_KEY` is absent
+- `skipped_run_live_not_requested` when a key exists but live validation was not explicitly requested
+- `skipped_openai_sdk_unavailable` when `--run-live` was requested without the OpenAI SDK available locally
+
+To run the optional live validation on three fixed questions, opt in explicitly:
+
+```bash
+python scripts/validate_openai_path.py --run-live
+make validate-openai RUN_LIVE=1
+```
+
+This live check exercises the GPT-4o-mini generation path through the local TF-IDF retrieval flow so it does not depend on ChromaDB or MiniLM. It may still require the full Python environment with the OpenAI SDK installed.
+
 ## Commands To Run
 
 ### CLI Prototype
@@ -127,6 +151,7 @@ python rag_system.py ask --backend auto --llm auto --question "What is self-atte
 python rag_system.py evaluate --backend tfidf --llm offline
 python scripts/run_backend_comparison.py --offline-only
 python scripts/run_backend_comparison.py --include-openai
+python scripts/validate_openai_path.py
 python rag_system.py demo --backend tfidf --llm offline
 python rag_system.py inspect-kb
 ```
@@ -226,6 +251,7 @@ This repository is a prototype, not a production-ready RAG system.
 │   ├── demo_run.md
 │   ├── evaluation_report.md
 │   ├── evaluation_summary.json
+│   ├── openai_validation_summary.json
 │   └── test_questions_scored.csv
 ├── src/ragfaq/
 ├── test_questions.csv

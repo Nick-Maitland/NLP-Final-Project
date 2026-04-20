@@ -1,11 +1,13 @@
 PYTHON_BOOTSTRAP ?= python3
+RUN_LIVE ?= 0
 VENV_DIR := .venv
 VENV_BIN := $(VENV_DIR)/bin
 VENV_PYTHON := $(VENV_BIN)/python
 VENV_PIP := $(VENV_BIN)/pip
 VENV_PYTEST := $(VENV_BIN)/pytest
+VALIDATE_OPENAI_ARGS := $(if $(filter 1,$(RUN_LIVE)),--run-live,)
 
-.PHONY: setup-lite setup-full smoke evaluate-offline compare-offline compare-full test clean package
+.PHONY: setup-lite setup-full smoke evaluate-offline compare-offline compare-full validate-openai test clean package
 
 $(VENV_PYTHON):
 	$(PYTHON_BOOTSTRAP) -m venv $(VENV_DIR)
@@ -35,6 +37,9 @@ compare-offline: setup-lite
 
 compare-full: setup-lite
 	HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(VENV_PYTHON) scripts/run_backend_comparison.py --include-openai
+
+validate-openai: setup-lite
+	$(VENV_PYTHON) scripts/validate_openai_path.py $(VALIDATE_OPENAI_ARGS)
 
 test: setup-lite
 	PYTEST_BIN="$$(if [ -x "$(VENV_PYTEST)" ]; then printf '%s' "$(VENV_PYTEST)"; else command -v pytest; fi)" && \

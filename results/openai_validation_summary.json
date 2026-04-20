@@ -1,0 +1,9 @@
+{
+  "status": "skipped_no_api_key",
+  "generated_at": "2026-04-20T16:23:05.404852+00:00",
+  "run_live": false,
+  "model_name": "gpt-4o-mini",
+  "question_count": 3,
+  "reason": "OPENAI_API_KEY is not set. Skipping GPT-4o-mini validation and writing a skip summary without making any OpenAI API call.",
+  "cases": []
+}

@@ -57,6 +57,7 @@ class PathConfig:
     backend_comparison_table_path: Path
     dense_validation_summary_path: Path
     dense_validation_report_path: Path
+    openai_validation_summary_path: Path
     readme_path: Path
     project_report_path: Path
     requirements_path: Path
@@ -115,6 +116,7 @@ def get_paths() -> PathConfig:
         backend_comparison_table_path=comparisons_dir / "backend_comparison_table.md",
         dense_validation_summary_path=results_dir / "dense_validation_summary.json",
         dense_validation_report_path=results_dir / "dense_validation_report.md",
+        openai_validation_summary_path=results_dir / "openai_validation_summary.json",
         project_report_path=root_dir / "PROJECT_REPORT.md",
         requirements_path=root_dir / "requirements.txt",
     )

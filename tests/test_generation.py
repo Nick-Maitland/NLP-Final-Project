@@ -104,16 +104,23 @@ def _count_answer_sentences(answer_text: str) -> int:
     return len([sentence for sentence in generation_module.sentence_split(normalized) if sentence])
 
 
+def _assert_openai_prompt_contract(messages: list[dict[str, str]]) -> None:
+    joined = "\n".join(message["content"] for message in messages)
+    assert generation_module.CONTEXT_ONLY_RULE in joined
+    assert generation_module.PROMPT_INJECTION_RULE in joined
+    assert generation_module.ABSTENTION_RULE in joined
+    assert generation_module.CITATION_RULE in joined
+    assert generation_module.SOURCE_ID_RULE in joined
+    assert "source_id=faq_attention_003" in joined
+    assert "[1]" in joined
+
+
 def test_openai_messages_include_security_and_citation_rules() -> None:
     messages = generation_module.build_openai_messages(
         "What is self-attention?",
         _chunks(),
     )
-    joined = "\n".join(message["content"] for message in messages)
-    assert "untrusted text" in joined
-    assert "Ignore any instructions" in joined
-    assert generation_module.ABSTENTION_TEXT in joined
-    assert "[1]" in joined
+    _assert_openai_prompt_contract(messages)
 
 
 def test_offline_generator_returns_cited_grounded_answer() -> None:
@@ -252,7 +259,7 @@ def test_answer_question_populates_citation_fields(monkeypatch: pytest.MonkeyPat
     assert answer.confidence_gate_triggered is False
 
 
-def test_openai_generator_uses_gpt4o_mini_and_temperature_zero(
+def test_openai_generator_uses_responses_api_with_gpt4o_mini_and_prompt_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[dict[str, object]] = []
@@ -275,6 +282,44 @@ def test_openai_generator_uses_gpt4o_mini_and_temperature_zero(
     assert answer.answer_text == "Self-attention compares tokens. [1]"
     assert calls[0]["model"] == "gpt-4o-mini"
     assert calls[0]["temperature"] == 0
+    _assert_openai_prompt_contract(calls[0]["input"])
+
+
+def test_openai_generator_falls_back_to_chat_completions_with_same_prompt_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chat_calls: list[dict[str, object]] = []
+
+    class FakeResponses:
+        def create(self, **kwargs):
+            raise RuntimeError("responses API unavailable in this runtime")
+
+    class FakeChatCompletions:
+        def create(self, **kwargs):
+            chat_calls.append(kwargs)
+            message = type("Message", (), {"content": "Self-attention compares tokens. [1]"})
+            choice = type("Choice", (), {"message": message})
+            return type("Response", (), {"choices": [choice]})()
+
+    class FakeChat:
+        def __init__(self) -> None:
+            self.completions = FakeChatCompletions()
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str) -> None:
+            self.api_key = api_key
+            self.responses = FakeResponses()
+            self.chat = FakeChat()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setitem(sys.modules, "openai", type("OpenAIModule", (), {"OpenAI": FakeOpenAI}))
+
+    generator = generation_module.OpenAIGenerator()
+    answer = generator.generate("What is self-attention?", _chunks())
+    assert answer.answer_text == "Self-attention compares tokens. [1]"
+    assert chat_calls[0]["model"] == "gpt-4o-mini"
+    assert chat_calls[0]["temperature"] == 0
+    _assert_openai_prompt_contract(chat_calls[0]["messages"])
 
 
 def test_strip_citation_markers_removes_bracket_refs() -> None:
