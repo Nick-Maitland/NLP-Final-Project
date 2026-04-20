@@ -41,3 +41,4 @@ package: setup-lite
 	else \
 		$(VENV_PYTHON) setup.py sdist bdist_wheel; \
 	fi
+	$(VENV_PYTHON) scripts/package_submission.py
