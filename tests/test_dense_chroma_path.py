@@ -15,8 +15,16 @@ if str(SRC_DIR) not in sys.path:
 
 import rag_system
 from ragfaq import embeddings as embedding_module
+from ragfaq import retrievers as retriever_module
 from ragfaq import vector_store as vector_store_module
-from ragfaq.schemas import AnswerResult, BackendMode, Chunk, LlmMode, RetrievedChunk
+from ragfaq.schemas import (
+    AnswerResult,
+    BackendMode,
+    Chunk,
+    LlmMode,
+    RetrievalRunResult,
+    RetrievedChunk,
+)
 from ragfaq.utils import RagFaqError, stable_text_hash
 
 
@@ -221,12 +229,14 @@ def test_chroma_vector_store_uses_add_and_query_with_expected_metadata(
     assert metadata["chunk_index"] == "0"
     assert metadata["text_hash"] == stable_text_hash("First chunk text")
 
-    results = store.query([0.5], top_k=3)
-    assert fake_client.collection.query_kwargs["n_results"] == 3
+    results = store.query([0.5], top_k=5)
+    assert fake_client.collection.query_kwargs["n_results"] == 5
     assert len(results) == 3
     assert results[0].rank == 1
     assert results[0].source_id == "doc_a"
     assert results[0].distance == 0.1
+    assert results[0].dense_rank == 1
+    assert results[0].dense_score == results[0].score
     assert results[0].metadata["source"] == "knowledge_base/docs/doc_a.md"
 
 
@@ -276,7 +286,11 @@ def test_ask_chroma_prints_three_ranked_retrieval_rows(
     monkeypatch.setattr(
         rag_system,
         "retrieve",
-        lambda *args, **kwargs: (retrieved_chunks, BackendMode.CHROMA),
+        lambda *args, **kwargs: RetrievalRunResult(
+            chunks=retrieved_chunks,
+            resolved_backend=BackendMode.CHROMA,
+            trace={"backend": "chroma"},
+        ),
     )
     monkeypatch.setattr(
         rag_system,
@@ -312,3 +326,153 @@ def test_ask_chroma_prints_three_ranked_retrieval_rows(
         "3. source=knowledge_base/docs/self_attention_and_transformer_architecture.md "
         "source_id=self_attention_and_transformer_architecture" in output
     )
+
+
+def test_ask_chroma_clamps_top_k_to_three(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys,
+) -> None:
+    calls: list[int] = []
+    retrieved_chunks = [
+        RetrievedChunk(
+            rank=1,
+            chunk_id="doc::chunk000",
+            source_id="doc",
+            title="Doc",
+            text="Attention compares tokens.",
+            score=0.9,
+            backend="chroma",
+            distance=0.1,
+            metadata={"source": "knowledge_base/faqs.csv"},
+        )
+    ]
+
+    def _retrieve(*args, **kwargs):
+        calls.append(kwargs["top_k"])
+        return RetrievalRunResult(
+            chunks=retrieved_chunks,
+            resolved_backend=BackendMode.CHROMA,
+            trace={"backend": "chroma"},
+        )
+
+    monkeypatch.setattr(rag_system, "retrieve", _retrieve)
+    monkeypatch.setattr(
+        rag_system,
+        "answer_question",
+        lambda **kwargs: AnswerResult(
+            question=kwargs["question"],
+            answer="Attention compares tokens.",
+            sources=["doc"],
+            resolved_backend=BackendMode.CHROMA,
+            resolved_llm=LlmMode.OFFLINE,
+            retrieved_chunks=retrieved_chunks,
+        ),
+    )
+
+    result = rag_system.main(
+        [
+            "ask",
+            "--backend",
+            "chroma",
+            "--top-k",
+            "9",
+            "--llm",
+            "offline",
+            "--question",
+            "What is attention?",
+        ]
+    )
+    output = capsys.readouterr().out
+    assert result == 0
+    assert calls == [3]
+    assert "Chroma course mode note: top-k is fixed to 3" in output
+
+
+def test_query_hybrid_index_uses_candidate_pool_fusion_and_trace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lexical_calls: list[int] = []
+    dense_calls: list[int] = []
+
+    lexical = [
+        RetrievedChunk(
+            rank=1,
+            chunk_id="shared::chunk000",
+            source_id="shared",
+            title="Shared",
+            text="Attention lets tokens gather context from other tokens in a sequence.",
+            score=8.0,
+            backend="tfidf",
+            lexical_rank=1,
+            lexical_score=8.0,
+            metadata={"source": "knowledge_base/faqs.csv", "topic": "attention", "chunk_index": "0"},
+        ),
+        RetrievedChunk(
+            rank=2,
+            chunk_id="lexical_only::chunk000",
+            source_id="lexical_only",
+            title="Lexical only",
+            text="Transformers remove recurrence and instead rely on attention.",
+            score=5.5,
+            backend="tfidf",
+            lexical_rank=2,
+            lexical_score=5.5,
+            metadata={"source": "knowledge_base/faqs.csv", "topic": "transformers", "chunk_index": "0"},
+        ),
+    ]
+    dense = [
+        RetrievedChunk(
+            rank=1,
+            chunk_id="dense_only::chunk000",
+            source_id="dense_only",
+            title="Dense only",
+            text="Self-attention helps transformers connect distant tokens directly.",
+            score=0.95,
+            backend="chroma",
+            distance=0.05,
+            dense_rank=1,
+            dense_score=0.95,
+            metadata={"source": "knowledge_base/docs/transformers_overview.md", "topic": "transformers", "chunk_index": "0"},
+        ),
+        RetrievedChunk(
+            rank=2,
+            chunk_id="shared::chunk000",
+            source_id="shared",
+            title="Shared",
+            text="Attention lets tokens gather context from other tokens in a sequence.",
+            score=0.90,
+            backend="chroma",
+            distance=0.10,
+            dense_rank=2,
+            dense_score=0.90,
+            metadata={"source": "knowledge_base/faqs.csv", "topic": "attention", "chunk_index": "0"},
+        ),
+    ]
+
+    monkeypatch.setattr(
+        retriever_module,
+        "query_lexical_index",
+        lambda question, top_k, paths=None: lexical_calls.append(top_k) or lexical,
+    )
+    monkeypatch.setattr(
+        retriever_module,
+        "query_dense_index",
+        lambda question, top_k, paths=None, collection_name=None: dense_calls.append(top_k) or dense,
+    )
+
+    final_chunks, trace = retriever_module.query_hybrid_index(
+        "How does attention help transformers?",
+        top_k=2,
+        candidate_k=12,
+    )
+    assert lexical_calls == [12]
+    assert dense_calls == [12]
+    assert len(final_chunks) == 2
+    assert final_chunks[0].fusion_score is not None
+    assert final_chunks[0].mmr_score is not None
+    assert final_chunks[0].selection_reason is not None
+    assert trace["backend"] == "hybrid"
+    assert trace["candidate_k"] == 12
+    assert len(trace["candidate_chunks"]) == 3
+    assert len(trace["final_chunks"]) == 2
+    assert trace["final_chunks"][0]["final_rank"] == 1

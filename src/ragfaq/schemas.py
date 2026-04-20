@@ -45,7 +45,21 @@ class RetrievedChunk:
     score: float
     backend: str
     distance: float | None = None
+    lexical_rank: int | None = None
+    lexical_score: float | None = None
+    dense_rank: int | None = None
+    dense_score: float | None = None
+    fusion_score: float | None = None
+    mmr_score: float | None = None
+    selection_reason: str | None = None
     metadata: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class RetrievalRunResult:
+    chunks: list[RetrievedChunk]
+    resolved_backend: BackendMode
+    trace: dict[str, object] | None = None
 
 
 @dataclass(frozen=True)

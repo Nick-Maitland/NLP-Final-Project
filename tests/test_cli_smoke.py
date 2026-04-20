@@ -105,6 +105,21 @@ def test_inspect_build_and_ask_offline(tmp_path: Path) -> None:
     assert "1. source=" in ask_result.stdout
     assert "self-attention" in ask_result.stdout.lower()
 
+    trace_result = run_cli(
+        "ask",
+        "--backend",
+        "tfidf",
+        "--llm",
+        "offline",
+        "--trace-output",
+        "--question",
+        "What is self-attention?",
+        env=env,
+    )
+    assert trace_result.returncode == 0
+    assert "Trace output:" in trace_result.stdout
+    assert (temp_root / "results" / "traces" / "latest_retrieval_trace.json").exists()
+
 
 def test_auto_backend_falls_back_to_tfidf_with_message(tmp_path: Path) -> None:
     temp_root = prepare_temp_root(tmp_path)
@@ -128,6 +143,28 @@ def test_auto_backend_falls_back_to_tfidf_with_message(tmp_path: Path) -> None:
     assert "Auto backend fallback: using tfidf" in ask_result.stdout
     assert "Resolved backend: tfidf" in ask_result.stdout
     assert "Retrieval results:" in ask_result.stdout
+
+
+def test_ask_does_not_write_trace_without_flag(tmp_path: Path) -> None:
+    temp_root = prepare_temp_root(tmp_path)
+    env = os.environ.copy()
+    env["RAGFAQ_ROOT"] = str(temp_root)
+
+    build_result = run_cli("build", "--backend", "tfidf", env=env)
+    assert build_result.returncode == 0
+
+    ask_result = run_cli(
+        "ask",
+        "--backend",
+        "tfidf",
+        "--llm",
+        "offline",
+        "--question",
+        "What is self-attention?",
+        env=env,
+    )
+    assert ask_result.returncode == 0
+    assert not (temp_root / "results" / "traces" / "latest_retrieval_trace.json").exists()
 
 
 def test_build_auto_fallback_message_via_main(monkeypatch, capsys) -> None:

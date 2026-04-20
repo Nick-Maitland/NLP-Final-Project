@@ -12,7 +12,9 @@ if str(SRC_DIR) not in sys.path:
 from ragfaq.chunking import chunk_documents, chunk_documents_with_report
 from ragfaq.config import (
     COLLECTION_NAME,
+    DEFAULT_CANDIDATE_K,
     DEFAULT_TOP_K,
+    DENSE_TOP_K,
     ensure_runtime_directories,
     get_paths,
 )
@@ -21,13 +23,14 @@ from ragfaq.generation import answer_question
 from ragfaq.ingest import discover_knowledge_files, load_documents
 from ragfaq.retrievers import inspect_index_state, maybe_build_indexes, retrieve
 from ragfaq.schemas import BackendMode, LlmMode
-from ragfaq.utils import RagFaqError, format_sources, normalize_text
+from ragfaq.utils import RagFaqError, dump_json, format_sources, normalize_text
 
 
 COMPATIBILITY_TEXT = (
     "Compatibility aliases remain supported: "
     "--build-index, --ask \"QUESTION\", --evaluate, and --smoke-test --offline."
 )
+DEFAULT_TRACE_ARG = "__DEFAULT_TRACE_OUTPUT__"
 
 
 def _choices(enum_cls) -> list[str]:
@@ -106,6 +109,25 @@ def build_parser() -> argparse.ArgumentParser:
         default=COLLECTION_NAME,
         help="Chroma collection name for dense retrieval.",
     )
+    retrieval_common = argparse.ArgumentParser(add_help=False)
+    retrieval_common.add_argument(
+        "--candidate-k",
+        type=int,
+        default=DEFAULT_CANDIDATE_K,
+        help="Candidate pool size for hybrid retrieval before fusion and MMR.",
+    )
+    retrieval_common.add_argument(
+        "--show-context",
+        action="store_true",
+        help="Print the full text of the final retrieved chunks.",
+    )
+    retrieval_common.add_argument(
+        "--trace-output",
+        nargs="?",
+        const=DEFAULT_TRACE_ARG,
+        default=None,
+        help="Write a retrieval trace JSON. Omit a value to use results/traces/latest_retrieval_trace.json.",
+    )
 
     build_parser = subparsers.add_parser(
         "build",
@@ -120,14 +142,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     ask_parser = subparsers.add_parser(
         "ask",
-        parents=[common],
+        parents=[common, retrieval_common],
         help="Ask a question against the indexed knowledge base.",
     )
     ask_parser.add_argument("--question", required=True, help="Question to answer.")
 
     subparsers.add_parser(
         "evaluate",
-        parents=[common],
+        parents=[common, retrieval_common],
         help="Run the 30-question evaluation and refresh the report.",
     )
     subparsers.add_parser(
@@ -137,7 +159,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     demo_parser = subparsers.add_parser(
         "demo",
-        parents=[common],
+        parents=[common, retrieval_common],
         help="Run an offline-safe smoke demo.",
     )
     demo_parser.add_argument(
@@ -153,6 +175,35 @@ def _resolve_requested_modes(args: argparse.Namespace) -> tuple[BackendMode, Llm
     backend = BackendMode(args.backend)
     llm = LlmMode.OFFLINE if args.offline else LlmMode(args.llm)
     return backend, llm
+
+
+def _resolve_trace_output_path(args: argparse.Namespace, paths) -> Path | None:
+    trace_output = getattr(args, "trace_output", None)
+    if trace_output is None:
+        return None
+    if trace_output == DEFAULT_TRACE_ARG:
+        return paths.latest_trace_path
+    candidate = Path(trace_output).expanduser()
+    if not candidate.is_absolute():
+        candidate = paths.root_dir / candidate
+    return candidate
+
+
+def _effective_top_k(args: argparse.Namespace, requested_backend: BackendMode) -> int:
+    top_k = args.top_k
+    if requested_backend is BackendMode.CHROMA and top_k != DENSE_TOP_K:
+        print(
+            "Chroma course mode note: top-k is fixed to 3 for direct Project 10 Chroma retrieval."
+        )
+        return DENSE_TOP_K
+    return top_k
+
+
+def _effective_candidate_k(args: argparse.Namespace, requested_backend: BackendMode, top_k: int) -> int:
+    candidate_k = getattr(args, "candidate_k", DEFAULT_CANDIDATE_K)
+    if requested_backend is BackendMode.HYBRID and candidate_k < top_k:
+        raise RagFaqError("--candidate-k must be greater than or equal to --top-k for hybrid mode.")
+    return max(candidate_k, top_k)
 
 
 def _load_docs_and_chunks():
@@ -186,9 +237,18 @@ def _print_auto_backend_note(
 
 
 def _chunk_metric(chunk) -> str:
+    parts = [f"score={chunk.score:.4f}"]
     if chunk.distance is not None:
-        return f"distance={chunk.distance:.4f} score={chunk.score:.4f}"
-    return f"score={chunk.score:.4f}"
+        parts.insert(0, f"distance={chunk.distance:.4f}")
+    if chunk.fusion_score is not None:
+        parts.append(f"fusion={chunk.fusion_score:.4f}")
+    if chunk.lexical_rank is not None:
+        parts.append(f"lexical_rank={chunk.lexical_rank}")
+    if chunk.dense_rank is not None:
+        parts.append(f"dense_rank={chunk.dense_rank}")
+    if chunk.mmr_score is not None:
+        parts.append(f"mmr={chunk.mmr_score:.4f}")
+    return " ".join(parts)
 
 
 def _snippet(text: str, limit: int = 140) -> str:
@@ -207,6 +267,24 @@ def _print_retrieval_preview(chunks) -> None:
             f"{_chunk_metric(chunk)}"
         )
         print(f"   snippet={_snippet(chunk.text)}")
+        if chunk.selection_reason:
+            print(f"   why={chunk.selection_reason}")
+
+
+def _print_context(chunks) -> None:
+    print("Retrieved context:")
+    for chunk in chunks:
+        source = chunk.metadata.get("source", "unknown")
+        print(f"[{chunk.rank}] {chunk.chunk_id} source={source} source_id={chunk.source_id}")
+        print(chunk.text)
+        print("")
+
+
+def _write_trace(trace_payload: dict[str, object] | None, output_path: Path | None) -> None:
+    if trace_payload is None or output_path is None:
+        return
+    dump_json(output_path, trace_payload)
+    print(f"Trace output: {output_path}")
 
 
 def command_build(args: argparse.Namespace) -> int:
@@ -287,25 +365,37 @@ def command_inspect_kb(args: argparse.Namespace) -> int:
 def command_ask(args: argparse.Namespace) -> int:
     requested_backend, requested_llm = _resolve_requested_modes(args)
     paths = ensure_runtime_directories(get_paths())
-    retrieved_chunks, resolved_backend = retrieve(
+    top_k = _effective_top_k(args, requested_backend)
+    candidate_k = _effective_candidate_k(args, requested_backend, top_k)
+    retrieval = retrieve(
         question=args.question,
         requested_backend=requested_backend,
-        top_k=args.top_k,
+        top_k=top_k,
+        candidate_k=candidate_k,
         paths=paths,
         collection_name=args.collection_name,
     )
-    _print_auto_backend_note(requested_backend, resolved_backend, paths, args.collection_name)
+    _print_auto_backend_note(
+        requested_backend,
+        retrieval.resolved_backend,
+        paths,
+        args.collection_name,
+    )
     answer = answer_question(
         question=args.question,
-        retrieved_chunks=retrieved_chunks,
+        retrieved_chunks=retrieval.chunks,
         requested_llm=requested_llm,
-        resolved_backend=resolved_backend,
+        resolved_backend=retrieval.resolved_backend,
     )
     print(f"Question: {args.question}")
     print(f"Resolved backend: {answer.resolved_backend.value}")
     print(f"Resolved llm: {answer.resolved_llm.value}")
     print(f"Sources: {format_sources(answer.sources)}")
     _print_retrieval_preview(answer.retrieved_chunks)
+    if args.show_context:
+        print("")
+        _print_context(answer.retrieved_chunks)
+    _write_trace(retrieval.trace, _resolve_trace_output_path(args, paths))
     print("")
     print(answer.answer)
     return 0
@@ -314,6 +404,8 @@ def command_ask(args: argparse.Namespace) -> int:
 def command_evaluate(args: argparse.Namespace) -> int:
     requested_backend, requested_llm = _resolve_requested_modes(args)
     paths, _, chunks = _load_docs_and_chunks()
+    top_k = _effective_top_k(args, requested_backend)
+    candidate_k = _effective_candidate_k(args, requested_backend, top_k)
     build_summary = maybe_build_indexes(
         chunks,
         requested_backend=requested_backend,
@@ -329,8 +421,11 @@ def command_evaluate(args: argparse.Namespace) -> int:
         requested_backend=requested_backend,
         requested_llm=requested_llm,
         paths=paths,
-        top_k=args.top_k,
+        top_k=top_k,
+        candidate_k=candidate_k,
         collection_name=args.collection_name,
+        show_context=args.show_context,
+        trace_output_path=_resolve_trace_output_path(args, paths),
     )
     average_recall = sum(result.recall_at_3 for result in results) / max(len(results), 1)
     average_faithfulness = sum(result.faithfulness_score for result in results) / max(
@@ -347,6 +442,8 @@ def command_evaluate(args: argparse.Namespace) -> int:
 def command_demo(args: argparse.Namespace) -> int:
     requested_backend, requested_llm = _resolve_requested_modes(args)
     paths, _, chunks = _load_docs_and_chunks()
+    top_k = _effective_top_k(args, requested_backend)
+    candidate_k = _effective_candidate_k(args, requested_backend, top_k)
     if not paths.lexical_index_path.exists():
         maybe_build_indexes(
             chunks,
@@ -356,19 +453,25 @@ def command_demo(args: argparse.Namespace) -> int:
         )
     demo_backend = requested_backend
     demo_llm = requested_llm
-    retrieved_chunks, resolved_backend = retrieve(
+    retrieval = retrieve(
         question=args.question,
         requested_backend=demo_backend,
-        top_k=args.top_k,
+        top_k=top_k,
+        candidate_k=candidate_k,
         paths=paths,
         collection_name=args.collection_name,
     )
-    _print_auto_backend_note(requested_backend, resolved_backend, paths, args.collection_name)
+    _print_auto_backend_note(
+        requested_backend,
+        retrieval.resolved_backend,
+        paths,
+        args.collection_name,
+    )
     answer = answer_question(
         question=args.question,
-        retrieved_chunks=retrieved_chunks,
+        retrieved_chunks=retrieval.chunks,
         requested_llm=demo_llm,
-        resolved_backend=resolved_backend,
+        resolved_backend=retrieval.resolved_backend,
     )
     print("Demo mode")
     print(f"Question: {args.question}")
@@ -376,6 +479,10 @@ def command_demo(args: argparse.Namespace) -> int:
     print(f"Resolved llm: {answer.resolved_llm.value}")
     print(f"Sources: {format_sources(answer.sources)}")
     _print_retrieval_preview(answer.retrieved_chunks)
+    if args.show_context:
+        print("")
+        _print_context(answer.retrieved_chunks)
+    _write_trace(retrieval.trace, _resolve_trace_output_path(args, paths))
     print("")
     print(answer.answer)
     return 0

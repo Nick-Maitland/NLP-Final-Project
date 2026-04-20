@@ -113,7 +113,7 @@ class ChromaVectorStore(VectorStore):
 
         results = collection.query(
             query_embeddings=[query_embedding],
-            n_results=DENSE_TOP_K,
+            n_results=top_k,
             include=["documents", "metadatas", "distances"],
         )
         documents = results.get("documents", [[]])[0]
@@ -137,6 +137,8 @@ class ChromaVectorStore(VectorStore):
                     score=1.0 / (1.0 + distance_value),
                     backend="chroma",
                     distance=distance_value,
+                    dense_rank=index,
+                    dense_score=1.0 / (1.0 + distance_value),
                     metadata=metadata,
                 )
             )

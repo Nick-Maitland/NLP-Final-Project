@@ -13,8 +13,11 @@ COLLECTION_NAME = "ragfaq_chunks"
 DENSE_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 DENSE_TOP_K = 3
 DEFAULT_TOP_K = 3
+DEFAULT_CANDIDATE_K = 12
 DEFAULT_CHUNK_SIZE = 120
 DEFAULT_CHUNK_OVERLAP = 24
+HYBRID_RRF_K = 60
+HYBRID_MMR_LAMBDA = 0.75
 EMBED_DEVICE = "cpu"
 EMBED_BATCH_SIZE = 16
 
@@ -26,9 +29,12 @@ class PathConfig:
     data_dir: Path
     index_dir: Path
     cache_dir: Path
+    results_dir: Path
+    traces_dir: Path
     lexical_index_path: Path
     chunk_cache_path: Path
     chroma_dir: Path
+    latest_trace_path: Path
     test_questions_path: Path
     failure_report_path: Path
     readme_path: Path
@@ -61,15 +67,20 @@ def get_paths() -> PathConfig:
     data_dir = root_dir / ".ragfaq"
     index_dir = data_dir / "indexes"
     cache_dir = data_dir / "cache"
+    results_dir = root_dir / "results"
+    traces_dir = results_dir / "traces"
     return PathConfig(
         root_dir=root_dir,
         knowledge_base_dir=root_dir / "knowledge_base",
         data_dir=data_dir,
         index_dir=index_dir,
         cache_dir=cache_dir,
+        results_dir=results_dir,
+        traces_dir=traces_dir,
         lexical_index_path=index_dir / "tfidf_index.json",
         chunk_cache_path=index_dir / "chunks.json",
         chroma_dir=root_dir / "chroma_db",
+        latest_trace_path=traces_dir / "latest_retrieval_trace.json",
         test_questions_path=root_dir / "test_questions.csv",
         failure_report_path=root_dir / "failure_case_report.md",
         readme_path=root_dir / "README.md",
@@ -114,6 +125,8 @@ def ensure_runtime_directories(paths: PathConfig | None = None) -> PathConfig:
     paths.index_dir.mkdir(parents=True, exist_ok=True)
     paths.cache_dir.mkdir(parents=True, exist_ok=True)
     paths.chroma_dir.mkdir(parents=True, exist_ok=True)
+    paths.results_dir.mkdir(parents=True, exist_ok=True)
+    paths.traces_dir.mkdir(parents=True, exist_ok=True)
     return paths
 
 
@@ -148,7 +161,7 @@ def resolve_llm_mode(
     requested: LlmMode,
     availability: RuntimeAvailability | None = None,
 ) -> LlmMode:
-    availability = availability or get_runtime_availability()
     if requested is LlmMode.AUTO:
+        availability = availability or get_runtime_availability()
         return LlmMode.OPENAI if availability.openai_key_available else LlmMode.OFFLINE
     return requested

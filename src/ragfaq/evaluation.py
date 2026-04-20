@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import datetime, timezone
+from pathlib import Path
 
-from .config import COLLECTION_NAME, DEFAULT_TOP_K, PathConfig, get_paths
+from .config import COLLECTION_NAME, DEFAULT_CANDIDATE_K, DEFAULT_TOP_K, PathConfig, get_paths
 from .generation import answer_question
 from .reporting import generate_failure_report
 from .retrievers import retrieve
 from .schemas import BackendMode, EvaluationRow, LlmMode
-from .utils import read_csv_rows, sentence_split, tokenize, write_csv_rows
+from .utils import dump_json, read_csv_rows, sentence_split, tokenize, write_csv_rows
 
 QUESTION_FIELDNAMES = [
     "question_id",
@@ -68,27 +70,42 @@ def run_evaluation(
     requested_llm: LlmMode,
     paths: PathConfig | None = None,
     top_k: int = DEFAULT_TOP_K,
+    candidate_k: int = DEFAULT_CANDIDATE_K,
     collection_name: str = COLLECTION_NAME,
+    show_context: bool = False,
+    trace_output_path: Path | None = None,
 ) -> list[EvaluationRow]:
     paths = paths or get_paths()
     rows = read_csv_rows(paths.test_questions_path)
     results: list[EvaluationRow] = []
+    traces: list[dict[str, object]] = []
 
     for row in rows:
         question = row["question"]
-        retrieved_chunks, resolved_backend = retrieve(
+        retrieval = retrieve(
             question,
             requested_backend=requested_backend,
             top_k=top_k,
+            candidate_k=candidate_k,
             paths=paths,
             collection_name=collection_name,
         )
+        retrieved_chunks = retrieval.chunks
+        resolved_backend = retrieval.resolved_backend
         answer = answer_question(
             question=question,
             retrieved_chunks=retrieved_chunks,
             requested_llm=requested_llm,
             resolved_backend=resolved_backend,
         )
+        if show_context:
+            print(f"[{row['question_id']}] {question}")
+            for chunk in retrieved_chunks:
+                print(f"{chunk.rank}. {chunk.chunk_id}")
+                print(chunk.text)
+                print("")
+        if retrieval.trace is not None:
+            traces.append(retrieval.trace)
         retrieved_source_ids = []
         for chunk in retrieved_chunks:
             if chunk.source_id not in retrieved_source_ids:
@@ -127,4 +144,14 @@ def run_evaluation(
         ],
     )
     generate_failure_report(results, paths.failure_report_path)
+    if trace_output_path is not None:
+        dump_json(
+            trace_output_path,
+            {
+                "mode": "evaluation",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "question_count": len(traces),
+                "traces": traces,
+            },
+        )
     return results
