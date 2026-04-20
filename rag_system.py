@@ -9,7 +9,7 @@ SRC_DIR = ROOT_DIR / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from ragfaq.chunking import chunk_documents
+from ragfaq.chunking import chunk_documents, chunk_documents_with_report
 from ragfaq.config import (
     DEFAULT_TOP_K,
     ensure_runtime_directories,
@@ -17,7 +17,7 @@ from ragfaq.config import (
 )
 from ragfaq.evaluation import run_evaluation
 from ragfaq.generation import answer_question
-from ragfaq.ingest import load_documents
+from ragfaq.ingest import discover_knowledge_files, load_documents
 from ragfaq.retrievers import inspect_index_state, maybe_build_indexes, retrieve
 from ragfaq.schemas import BackendMode, LlmMode
 from ragfaq.utils import RagFaqError, format_sources
@@ -191,12 +191,36 @@ def command_build(args: argparse.Namespace) -> int:
 
 
 def command_inspect_kb(args: argparse.Namespace) -> int:
-    paths, documents, chunks = _load_docs_and_chunks()
+    paths = ensure_runtime_directories(get_paths())
+    knowledge_files = discover_knowledge_files(paths)
+    documents = load_documents(paths)
+    chunks, chunk_report = chunk_documents_with_report(documents)
     index_state = inspect_index_state(paths)
     print(f"Knowledge-base directory: {paths.knowledge_base_dir}")
+    print(f"Knowledge-base files: {len(knowledge_files)}")
+    print(
+        "FAQ rows: "
+        f"{sum(1 for document in documents if document.metadata.get('kind') == 'faq')}"
+    )
     print(f"Source documents: {len(documents)}")
     print(f"Chunk count (computed): {len(chunks)}")
-    print(f"Source IDs: {format_sources([document.source_id for document in documents])}")
+    print(f"Topics covered: {format_sources(chunk_report['topics'])}")
+    print(f"Top 10 chunk IDs: {format_sources(chunk_report['top_chunk_ids'])}")
+    if chunk_report["too_short_chunk_ids"]:
+        print(
+            "Too-short chunks: "
+            f"{format_sources(chunk_report['too_short_chunk_ids'])}"
+        )
+    else:
+        print("Too-short chunks: none")
+    if chunk_report["duplicate_chunk_ids"]:
+        print(
+            "Duplicate-like chunks skipped: "
+            f"{len(chunk_report['duplicate_chunk_ids'])} "
+            f"({format_sources(chunk_report['duplicate_chunk_ids'][:10])})"
+        )
+    else:
+        print("Duplicate-like chunks skipped: 0")
     print(f"Lexical index ready: {index_state['lexical_index_ready']}")
     print(f"Dense index ready: {index_state['dense_index_ready']}")
     print(f"Chroma SDK available: {index_state['chroma_sdk_available']}")

@@ -1,3 +1,9 @@
+---
+title: Self-Attention and Transformer Architecture
+topic: attention
+kind: doc
+---
+
 # Self-Attention and Transformer Architecture
 
 Self-attention is a mechanism that lets each token compare itself with other tokens in the same sequence and compute a weighted combination of their representations. This helps the model decide which tokens are most relevant when building context.
@@ -9,4 +15,3 @@ Scaled dot-product attention computes attention scores by taking dot products be
 Self-attention helps capture long-range relationships because every token can directly attend to every other token in the sequence. Unlike a simple recurrent path, it does not need to pass information through many sequential steps before connecting distant words.
 
 For each token, self-attention produces a contextual output vector. That output mixes information from the token itself and from other relevant tokens, allowing the representation to reflect the broader sentence context.
-

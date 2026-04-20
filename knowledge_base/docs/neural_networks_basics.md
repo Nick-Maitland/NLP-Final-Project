@@ -1,3 +1,9 @@
+---
+title: Neural Networks Basics
+topic: neural_networks
+kind: doc
+---
+
 # Neural Networks Basics
 
 A perceptron is a simple computational unit that takes weighted inputs, adds a bias term, and produces an output. It is the basic building block that inspired modern neural networks.

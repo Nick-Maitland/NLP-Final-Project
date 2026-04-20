@@ -80,7 +80,9 @@ def test_inspect_build_and_ask_offline(tmp_path: Path) -> None:
 
     inspect_result = run_cli("inspect-kb", env=env)
     assert inspect_result.returncode == 0
-    assert "Source documents: 1" in inspect_result.stdout
+    assert "Knowledge-base files: 1" in inspect_result.stdout
+    assert "FAQ rows: 0" in inspect_result.stdout
+    assert "Top 10 chunk IDs: sample::chunk000" in inspect_result.stdout
 
     build_result = run_cli("build", "--backend", "tfidf", env=env)
     assert build_result.returncode == 0
