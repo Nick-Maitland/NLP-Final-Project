@@ -101,3 +101,26 @@ def test_inspect_build_and_ask_offline(tmp_path: Path) -> None:
     assert "Resolved llm: offline" in ask_result.stdout
     assert "self-attention" in ask_result.stdout.lower()
 
+
+def test_auto_backend_falls_back_to_tfidf_with_message(tmp_path: Path) -> None:
+    temp_root = prepare_temp_root(tmp_path)
+    env = os.environ.copy()
+    env["RAGFAQ_ROOT"] = str(temp_root)
+
+    build_result = run_cli("build", "--backend", "tfidf", env=env)
+    assert build_result.returncode == 0
+
+    ask_result = run_cli(
+        "ask",
+        "--backend",
+        "auto",
+        "--llm",
+        "offline",
+        "--question",
+        "What is self-attention?",
+        env=env,
+    )
+    assert ask_result.returncode == 0
+    assert "Auto backend fallback: using tfidf" in ask_result.stdout
+    assert "Resolved backend: tfidf" in ask_result.stdout
+

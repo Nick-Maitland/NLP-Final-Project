@@ -1,5 +1,10 @@
-beautifulsoup4
-chromadb
-openai
-sentence-transformers
+beautifulsoup4>=4.12,<5
+openai>=2.8,<3
+chromadb>=1.1,<2
+sentence-transformers>=3,<4
+numpy>=1.26,<2.0
+scikit-learn>=1.4,<1.6
+pandas>=2.1,<2.3
+pytest>=8.3,<9
+rich>=13.7,<14
 

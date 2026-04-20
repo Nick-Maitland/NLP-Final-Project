@@ -10,11 +10,53 @@ This repository implements Durham College NLP Project 10 as a RAG-based FAQ answ
 - `test_questions.csv`: 30 evaluation questions plus scores populated by the evaluation command
 - `failure_case_report.md`: failure analysis generated from real evaluation runs
 
-## Install
+## Lite Setup (offline-safe)
 
 ```bash
-python3 -m pip install -r requirements.txt
+make setup-lite
 ```
+
+Lite setup is the recommended first run on an M1 MacBook Pro. It installs only the
+dependencies needed for TF-IDF retrieval, offline extractive answers, evaluation, and tests.
+It does not require OpenAI, ChromaDB, sentence-transformers, or model downloads.
+
+## Full Setup (dense + OpenAI capable)
+
+```bash
+make setup-full
+```
+
+Full setup installs the complete Project 10 stack, including ChromaDB and
+`sentence-transformers/all-MiniLM-L6-v2` support. The first dense run may require a one-time
+MiniLM model download if the model is not already cached.
+
+## M1 Preflight
+
+```bash
+python scripts/preflight_m1.py
+```
+
+This checks whether the current environment is best suited for:
+
+- `SAFE MODE: lite`
+- `SAFE MODE: full`
+- `SAFE MODE: full-with-download`
+- `SAFE MODE: blocked`
+
+## Make Targets
+
+```bash
+make setup-lite
+make setup-full
+make smoke
+make evaluate-offline
+make test
+make clean
+make package
+```
+
+`make smoke` and `make test` are designed to work in lite mode without network access, OpenAI,
+ChromaDB, or sentence-transformers.
 
 ## Primary Commands
 
@@ -49,7 +91,8 @@ python rag_system.py --smoke-test --offline
 
 ## Offline Smoke Path
 
-These commands are expected to work without an OpenAI API key and without a sentence-transformers model download:
+These commands are expected to work without an OpenAI API key, without ChromaDB, and without a
+sentence-transformers model download:
 
 ```bash
 python rag_system.py inspect-kb
@@ -57,3 +100,8 @@ python rag_system.py build --backend tfidf
 python rag_system.py ask --backend tfidf --llm offline --question "What is self-attention?"
 ```
 
+The local smoke script runs the same offline-safe path:
+
+```bash
+scripts/local_smoke_test.sh
+```

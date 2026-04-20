@@ -14,7 +14,6 @@ from ragfaq.config import (
     DEFAULT_TOP_K,
     ensure_runtime_directories,
     get_paths,
-    get_runtime_availability,
 )
 from ragfaq.evaluation import run_evaluation
 from ragfaq.generation import answer_question
@@ -152,6 +151,24 @@ def _load_docs_and_chunks():
     return paths, documents, chunks
 
 
+def _print_auto_backend_note(
+    requested_backend: BackendMode,
+    resolved_backend: BackendMode,
+    paths,
+) -> None:
+    if requested_backend is not BackendMode.AUTO or resolved_backend is not BackendMode.TFIDF:
+        return
+    index_state = inspect_index_state(paths)
+    if index_state["dense_runtime_available"]:
+        detail = "dense index is not built yet"
+    else:
+        detail = index_state["dense_runtime_reason"]
+    print(
+        "Auto backend fallback: using tfidf because dense retrieval is unavailable "
+        f"({detail})."
+    )
+
+
 def command_build(args: argparse.Namespace) -> int:
     requested_backend, _ = _resolve_requested_modes(args)
     paths, documents, chunks = _load_docs_and_chunks()
@@ -165,12 +182,16 @@ def command_build(args: argparse.Namespace) -> int:
         print(f"Dense index: built with {dense_summary['document_count']} stored chunks")
     else:
         print(f"Dense index: skipped ({dense_summary.get('reason', 'not requested')})")
+        if requested_backend is BackendMode.AUTO:
+            print(
+                "Auto backend fallback: tfidf will remain the safe local default until "
+                "the dense stack and MiniLM model are available."
+            )
     return 0
 
 
 def command_inspect_kb(args: argparse.Namespace) -> int:
     paths, documents, chunks = _load_docs_and_chunks()
-    availability = get_runtime_availability()
     index_state = inspect_index_state(paths)
     print(f"Knowledge-base directory: {paths.knowledge_base_dir}")
     print(f"Source documents: {len(documents)}")
@@ -178,12 +199,14 @@ def command_inspect_kb(args: argparse.Namespace) -> int:
     print(f"Source IDs: {format_sources([document.source_id for document in documents])}")
     print(f"Lexical index ready: {index_state['lexical_index_ready']}")
     print(f"Dense index ready: {index_state['dense_index_ready']}")
-    print(f"Chroma SDK available: {availability.chromadb.available}")
-    print(f"Sentence-transformers available: {availability.sentence_transformers.available}")
-    if not availability.sentence_transformers.available:
+    print(f"Chroma SDK available: {index_state['chroma_sdk_available']}")
+    print(
+        f"Sentence-transformers available: {index_state['sentence_transformers_available']}"
+    )
+    if not index_state["sentence_transformers_available"]:
         print(f"Dense availability reason: {index_state['dense_runtime_reason']}")
-    print(f"OpenAI SDK available: {availability.openai_sdk.available}")
-    print(f"OPENAI_API_KEY present: {availability.openai_key_available}")
+    print(f"OpenAI SDK available: {index_state['openai_sdk_available']}")
+    print(f"OPENAI_API_KEY present: {index_state['openai_key_available']}")
     return 0
 
 
@@ -196,6 +219,7 @@ def command_ask(args: argparse.Namespace) -> int:
         top_k=args.top_k,
         paths=paths,
     )
+    _print_auto_backend_note(requested_backend, resolved_backend, paths)
     answer = answer_question(
         question=args.question,
         retrieved_chunks=retrieved_chunks,
@@ -214,7 +238,12 @@ def command_ask(args: argparse.Namespace) -> int:
 def command_evaluate(args: argparse.Namespace) -> int:
     requested_backend, requested_llm = _resolve_requested_modes(args)
     paths, _, chunks = _load_docs_and_chunks()
-    maybe_build_indexes(chunks, requested_backend=requested_backend, paths=paths)
+    build_summary = maybe_build_indexes(chunks, requested_backend=requested_backend, paths=paths)
+    if requested_backend is BackendMode.AUTO and not build_summary["dense_index"].get("built"):
+        print(
+            "Auto backend fallback: evaluation is using tfidf because dense retrieval "
+            f"is unavailable ({build_summary['dense_index'].get('reason', 'unknown reason')})."
+        )
     results = run_evaluation(
         requested_backend=requested_backend,
         requested_llm=requested_llm,
@@ -246,6 +275,7 @@ def command_demo(args: argparse.Namespace) -> int:
         top_k=args.top_k,
         paths=paths,
     )
+    _print_auto_backend_note(requested_backend, resolved_backend, paths)
     answer = answer_question(
         question=args.question,
         retrieved_chunks=retrieved_chunks,

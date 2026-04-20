@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .config import DENSE_MODEL_NAME
+from .config import DENSE_MODEL_NAME, EMBED_BATCH_SIZE, EMBED_DEVICE
 from .utils import RagFaqError
 
 
@@ -32,7 +32,7 @@ class MiniLMEmbedder:
                     f"could not be imported: {type(exc).__name__}: {exc}"
                 ) from exc
             try:
-                self._model = SentenceTransformer(self.model_name)
+                self._model = SentenceTransformer(self.model_name, device=EMBED_DEVICE)
             except Exception as exc:  # pragma: no cover - depends on runtime environment
                 raise RagFaqError(
                     "Dense retrieval is unavailable because the MiniLM model could "
@@ -44,6 +44,10 @@ class MiniLMEmbedder:
         if not texts:
             return []
         model = self._load_model()
-        vectors = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+        vectors = model.encode(
+            texts,
+            batch_size=EMBED_BATCH_SIZE,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
         return [vector.tolist() for vector in vectors]
-

@@ -299,6 +299,8 @@ def inspect_index_state(paths: PathConfig | None = None) -> dict[str, object]:
         "dense_index_ready": dense_index_exists(paths),
         "dense_runtime_available": dense_ok,
         "dense_runtime_reason": dense_reason,
+        "chroma_sdk_available": availability.chromadb.available,
+        "sentence_transformers_available": availability.sentence_transformers.available,
         "openai_key_available": availability.openai_key_available,
         "openai_sdk_available": availability.openai_sdk.available,
     }
