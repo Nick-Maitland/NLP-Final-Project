@@ -4,17 +4,18 @@ import math
 from collections import Counter
 
 from .config import (
+    COLLECTION_NAME,
+    DENSE_TOP_K,
     DEFAULT_TOP_K,
     PathConfig,
-    dense_runtime_available,
     get_paths,
     get_runtime_availability,
     resolve_query_backend,
 )
-from .embeddings import MiniLMEmbedder
+from .embeddings import SentenceTransformerEmbeddingProvider, _load_sentence_transformer_class
 from .schemas import BackendMode, Chunk, RetrievedChunk
 from .utils import RagFaqError, content_tokens, dump_json, load_json, tokenize
-from .vector_store import ChromaStore
+from .vector_store import ChromaVectorStore
 
 
 def _chunk_to_payload(chunk: Chunk, term_frequencies: dict[str, int]) -> dict[str, object]:
@@ -76,17 +77,45 @@ def lexical_index_exists(paths: PathConfig | None = None) -> bool:
     return paths.lexical_index_path.exists()
 
 
-def dense_index_exists(paths: PathConfig | None = None) -> bool:
+def _dense_backend_available(paths: PathConfig | None = None) -> tuple[bool, str]:
     paths = paths or get_paths()
-    return ChromaStore(paths.chroma_dir).has_index()
+    availability = get_runtime_availability()
+    if not availability.chromadb.available:
+        return False, f"chromadb unavailable: {availability.chromadb.reason}"
+    try:
+        _load_sentence_transformer_class()
+    except Exception as exc:
+        return (
+            False,
+            "sentence-transformers unavailable: "
+            f"{type(exc).__name__}: {exc}",
+        )
+    provider = SentenceTransformerEmbeddingProvider(paths.cache_dir)
+    cached, detail = provider.local_model_status()
+    if not cached:
+        return False, detail
+    return True, ""
 
 
-def build_dense_index(chunks: list[Chunk], paths: PathConfig | None = None) -> dict[str, object]:
+def dense_index_exists(
+    paths: PathConfig | None = None,
+    collection_name: str = COLLECTION_NAME,
+) -> bool:
     paths = paths or get_paths()
-    embedder = MiniLMEmbedder(paths.cache_dir)
+    return ChromaVectorStore(paths.chroma_dir, collection_name=collection_name).has_index()
+
+
+def build_dense_index(
+    chunks: list[Chunk],
+    paths: PathConfig | None = None,
+    collection_name: str = COLLECTION_NAME,
+    rebuild: bool = False,
+) -> dict[str, object]:
+    paths = paths or get_paths()
+    embedder = SentenceTransformerEmbeddingProvider(paths.cache_dir)
     embeddings = embedder.embed_texts([chunk.text for chunk in chunks])
-    store = ChromaStore(paths.chroma_dir)
-    count = store.rebuild(chunks, embeddings)
+    store = ChromaVectorStore(paths.chroma_dir, collection_name=collection_name)
+    count = store.index(chunks, embeddings, rebuild=rebuild)
     return {"document_count": count}
 
 
@@ -94,6 +123,8 @@ def maybe_build_indexes(
     chunks: list[Chunk],
     requested_backend: BackendMode,
     paths: PathConfig | None = None,
+    collection_name: str = COLLECTION_NAME,
+    rebuild: bool = False,
 ) -> dict[str, object]:
     paths = paths or get_paths()
     summary: dict[str, object] = {}
@@ -112,7 +143,7 @@ def maybe_build_indexes(
         summary["dense_index"] = {"built": False, "reason": "backend tfidf selected"}
         return summary
 
-    dense_ok, reason = dense_runtime_available()
+    dense_ok, reason = _dense_backend_available(paths)
     if not dense_ok:
         if requested_backend in {BackendMode.CHROMA, BackendMode.HYBRID}:
             raise RagFaqError(
@@ -123,7 +154,12 @@ def maybe_build_indexes(
         return summary
 
     try:
-        dense_summary = build_dense_index(chunks, paths)
+        dense_summary = build_dense_index(
+            chunks,
+            paths,
+            collection_name=collection_name,
+            rebuild=rebuild,
+        )
     except RagFaqError as exc:
         if requested_backend in {BackendMode.CHROMA, BackendMode.HYBRID}:
             raise
@@ -194,27 +230,30 @@ def query_lexical_index(
     top_ranked = ranked[:top_k]
     return [
         RetrievedChunk(
+            rank=index,
             chunk_id=document["chunk_id"],
             source_id=document["source_id"],
             title=document["title"],
             text=document["text"],
             score=float(score),
             backend="tfidf",
+            distance=None,
             metadata={k: str(v) for k, v in document.get("metadata", {}).items()},
         )
-        for score, document in top_ranked
+        for index, (score, document) in enumerate(top_ranked, start=1)
     ]
 
 
 def query_dense_index(
     question: str,
-    top_k: int = DEFAULT_TOP_K,
+    top_k: int = DENSE_TOP_K,
     paths: PathConfig | None = None,
+    collection_name: str = COLLECTION_NAME,
 ) -> list[RetrievedChunk]:
     paths = paths or get_paths()
-    embedder = MiniLMEmbedder(paths.cache_dir)
+    embedder = SentenceTransformerEmbeddingProvider(paths.cache_dir)
     query_embedding = embedder.embed_texts([question])[0]
-    store = ChromaStore(paths.chroma_dir)
+    store = ChromaVectorStore(paths.chroma_dir, collection_name=collection_name)
     return store.query(query_embedding, top_k=top_k)
 
 
@@ -229,9 +268,10 @@ def query_hybrid_index(
     question: str,
     top_k: int = DEFAULT_TOP_K,
     paths: PathConfig | None = None,
+    collection_name: str = COLLECTION_NAME,
 ) -> list[RetrievedChunk]:
     lexical = query_lexical_index(question, top_k=top_k * 2, paths=paths)
-    dense = query_dense_index(question, top_k=top_k * 2, paths=paths)
+    dense = query_dense_index(question, top_k=DENSE_TOP_K, paths=paths, collection_name=collection_name)
     lexical_scores = _normalize_scores(lexical)
     dense_scores = _normalize_scores(dense)
 
@@ -242,17 +282,34 @@ def query_hybrid_index(
         )
         if chunk.chunk_id not in merged or combined_score > merged[chunk.chunk_id].score:
             merged[chunk.chunk_id] = RetrievedChunk(
+                rank=0,
                 chunk_id=chunk.chunk_id,
                 source_id=chunk.source_id,
                 title=chunk.title,
                 text=chunk.text,
                 score=combined_score,
                 backend="hybrid",
+                distance=chunk.distance,
                 metadata=chunk.metadata,
             )
 
     results = sorted(merged.values(), key=lambda chunk: chunk.score, reverse=True)
-    return results[:top_k]
+    reranked: list[RetrievedChunk] = []
+    for index, chunk in enumerate(results[:top_k], start=1):
+        reranked.append(
+            RetrievedChunk(
+                rank=index,
+                chunk_id=chunk.chunk_id,
+                source_id=chunk.source_id,
+                title=chunk.title,
+                text=chunk.text,
+                score=chunk.score,
+                backend=chunk.backend,
+                distance=chunk.distance,
+                metadata=chunk.metadata,
+            )
+        )
+    return reranked
 
 
 def retrieve(
@@ -260,23 +317,26 @@ def retrieve(
     requested_backend: BackendMode,
     top_k: int = DEFAULT_TOP_K,
     paths: PathConfig | None = None,
+    collection_name: str = COLLECTION_NAME,
 ) -> tuple[list[RetrievedChunk], BackendMode]:
     paths = paths or get_paths()
     lexical_ready = lexical_index_exists(paths)
-    dense_ready = dense_index_exists(paths)
+    if requested_backend is BackendMode.TFIDF:
+        return query_lexical_index(question, top_k=top_k, paths=paths), BackendMode.TFIDF
+
+    dense_backend_ok, dense_reason = _dense_backend_available(paths)
+    dense_ready = dense_index_exists(paths, collection_name=collection_name) and dense_backend_ok
     resolved_backend = resolve_query_backend(requested_backend, lexical_ready, dense_ready)
 
     if requested_backend is BackendMode.CHROMA and not dense_ready:
-        dense_ok, reason = dense_runtime_available()
-        suffix = reason if not dense_ok else "Dense index not built yet."
+        suffix = dense_reason if not dense_backend_ok else "Dense index not built yet."
         raise RagFaqError(
             "Dense retrieval requested but unavailable. "
-            "Run `python rag_system.py build --backend chroma` after fixing dependencies. "
+            "Run `python rag_system.py build --backend chroma --rebuild` after fixing dependencies. "
             f"{suffix}"
         )
     if requested_backend is BackendMode.HYBRID and not (lexical_ready and dense_ready):
-        dense_ok, reason = dense_runtime_available()
-        suffix = reason if not dense_ok else "Both lexical and dense indexes must exist."
+        suffix = dense_reason if not dense_backend_ok else "Both lexical and dense indexes must exist."
         raise RagFaqError(
             "Hybrid retrieval requested but unavailable. "
             "Run `python rag_system.py build --backend hybrid` after fixing dependencies. "
@@ -286,17 +346,36 @@ def retrieve(
     if resolved_backend is BackendMode.TFIDF:
         return query_lexical_index(question, top_k=top_k, paths=paths), resolved_backend
     if resolved_backend is BackendMode.CHROMA:
-        return query_dense_index(question, top_k=top_k, paths=paths), resolved_backend
-    return query_hybrid_index(question, top_k=top_k, paths=paths), resolved_backend
+        return (
+            query_dense_index(
+                question,
+                top_k=DENSE_TOP_K,
+                paths=paths,
+                collection_name=collection_name,
+            ),
+            resolved_backend,
+        )
+    return (
+        query_hybrid_index(
+            question,
+            top_k=top_k,
+            paths=paths,
+            collection_name=collection_name,
+        ),
+        resolved_backend,
+    )
 
 
-def inspect_index_state(paths: PathConfig | None = None) -> dict[str, object]:
+def inspect_index_state(
+    paths: PathConfig | None = None,
+    collection_name: str = COLLECTION_NAME,
+) -> dict[str, object]:
     paths = paths or get_paths()
     availability = get_runtime_availability()
-    dense_ok, dense_reason = dense_runtime_available(availability)
+    dense_ok, dense_reason = _dense_backend_available(paths)
     return {
         "lexical_index_ready": lexical_index_exists(paths),
-        "dense_index_ready": dense_index_exists(paths),
+        "dense_index_ready": dense_index_exists(paths, collection_name=collection_name),
         "dense_runtime_available": dense_ok,
         "dense_runtime_reason": dense_reason,
         "chroma_sdk_available": availability.chromadb.available,

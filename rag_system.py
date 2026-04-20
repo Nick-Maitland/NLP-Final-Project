@@ -11,6 +11,7 @@ if str(SRC_DIR) not in sys.path:
 
 from ragfaq.chunking import chunk_documents, chunk_documents_with_report
 from ragfaq.config import (
+    COLLECTION_NAME,
     DEFAULT_TOP_K,
     ensure_runtime_directories,
     get_paths,
@@ -20,7 +21,7 @@ from ragfaq.generation import answer_question
 from ragfaq.ingest import discover_knowledge_files, load_documents
 from ragfaq.retrievers import inspect_index_state, maybe_build_indexes, retrieve
 from ragfaq.schemas import BackendMode, LlmMode
-from ragfaq.utils import RagFaqError, format_sources
+from ragfaq.utils import RagFaqError, format_sources, normalize_text
 
 
 COMPATIBILITY_TEXT = (
@@ -100,8 +101,22 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_TOP_K,
         help="Number of chunks to retrieve.",
     )
+    common.add_argument(
+        "--collection-name",
+        default=COLLECTION_NAME,
+        help="Chroma collection name for dense retrieval.",
+    )
 
-    subparsers.add_parser("build", parents=[common], help="Build indexes from the knowledge base.")
+    build_parser = subparsers.add_parser(
+        "build",
+        parents=[common],
+        help="Build indexes from the knowledge base.",
+    )
+    build_parser.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="Clear and rebuild the target Chroma collection before indexing.",
+    )
 
     ask_parser = subparsers.add_parser(
         "ask",
@@ -155,10 +170,11 @@ def _print_auto_backend_note(
     requested_backend: BackendMode,
     resolved_backend: BackendMode,
     paths,
+    collection_name: str,
 ) -> None:
     if requested_backend is not BackendMode.AUTO or resolved_backend is not BackendMode.TFIDF:
         return
-    index_state = inspect_index_state(paths)
+    index_state = inspect_index_state(paths, collection_name=collection_name)
     if index_state["dense_runtime_available"]:
         detail = "dense index is not built yet"
     else:
@@ -169,17 +185,50 @@ def _print_auto_backend_note(
     )
 
 
+def _chunk_metric(chunk) -> str:
+    if chunk.distance is not None:
+        return f"distance={chunk.distance:.4f} score={chunk.score:.4f}"
+    return f"score={chunk.score:.4f}"
+
+
+def _snippet(text: str, limit: int = 140) -> str:
+    normalized = normalize_text(text).replace("\n", " ")
+    if len(normalized) <= limit:
+        return normalized
+    return normalized[: limit - 3].rstrip() + "..."
+
+
+def _print_retrieval_preview(chunks) -> None:
+    print("Retrieval results:")
+    for chunk in chunks:
+        source = chunk.metadata.get("source", "unknown")
+        print(
+            f"{chunk.rank}. source={source} source_id={chunk.source_id} "
+            f"{_chunk_metric(chunk)}"
+        )
+        print(f"   snippet={_snippet(chunk.text)}")
+
+
 def command_build(args: argparse.Namespace) -> int:
     requested_backend, _ = _resolve_requested_modes(args)
     paths, documents, chunks = _load_docs_and_chunks()
-    summary = maybe_build_indexes(chunks, requested_backend=requested_backend, paths=paths)
+    summary = maybe_build_indexes(
+        chunks,
+        requested_backend=requested_backend,
+        paths=paths,
+        collection_name=args.collection_name,
+        rebuild=args.rebuild,
+    )
     print(f"Knowledge-base documents: {len(documents)}")
     print(f"Generated chunks: {len(chunks)}")
     lexical_summary = summary["lexical_index"]
     print(f"Lexical index: ready at {lexical_summary['path']}")
     dense_summary = summary["dense_index"]
     if dense_summary.get("built"):
-        print(f"Dense index: built with {dense_summary['document_count']} stored chunks")
+        print(
+            f"Dense index: built with {dense_summary['document_count']} stored chunks "
+            f"in collection {args.collection_name}"
+        )
     else:
         print(f"Dense index: skipped ({dense_summary.get('reason', 'not requested')})")
         if requested_backend is BackendMode.AUTO:
@@ -195,8 +244,9 @@ def command_inspect_kb(args: argparse.Namespace) -> int:
     knowledge_files = discover_knowledge_files(paths)
     documents = load_documents(paths)
     chunks, chunk_report = chunk_documents_with_report(documents)
-    index_state = inspect_index_state(paths)
+    index_state = inspect_index_state(paths, collection_name=args.collection_name)
     print(f"Knowledge-base directory: {paths.knowledge_base_dir}")
+    print(f"Chroma collection: {args.collection_name}")
     print(f"Knowledge-base files: {len(knowledge_files)}")
     print(
         "FAQ rows: "
@@ -227,7 +277,7 @@ def command_inspect_kb(args: argparse.Namespace) -> int:
     print(
         f"Sentence-transformers available: {index_state['sentence_transformers_available']}"
     )
-    if not index_state["sentence_transformers_available"]:
+    if not index_state["dense_runtime_available"]:
         print(f"Dense availability reason: {index_state['dense_runtime_reason']}")
     print(f"OpenAI SDK available: {index_state['openai_sdk_available']}")
     print(f"OPENAI_API_KEY present: {index_state['openai_key_available']}")
@@ -242,8 +292,9 @@ def command_ask(args: argparse.Namespace) -> int:
         requested_backend=requested_backend,
         top_k=args.top_k,
         paths=paths,
+        collection_name=args.collection_name,
     )
-    _print_auto_backend_note(requested_backend, resolved_backend, paths)
+    _print_auto_backend_note(requested_backend, resolved_backend, paths, args.collection_name)
     answer = answer_question(
         question=args.question,
         retrieved_chunks=retrieved_chunks,
@@ -254,6 +305,7 @@ def command_ask(args: argparse.Namespace) -> int:
     print(f"Resolved backend: {answer.resolved_backend.value}")
     print(f"Resolved llm: {answer.resolved_llm.value}")
     print(f"Sources: {format_sources(answer.sources)}")
+    _print_retrieval_preview(answer.retrieved_chunks)
     print("")
     print(answer.answer)
     return 0
@@ -262,7 +314,12 @@ def command_ask(args: argparse.Namespace) -> int:
 def command_evaluate(args: argparse.Namespace) -> int:
     requested_backend, requested_llm = _resolve_requested_modes(args)
     paths, _, chunks = _load_docs_and_chunks()
-    build_summary = maybe_build_indexes(chunks, requested_backend=requested_backend, paths=paths)
+    build_summary = maybe_build_indexes(
+        chunks,
+        requested_backend=requested_backend,
+        paths=paths,
+        collection_name=args.collection_name,
+    )
     if requested_backend is BackendMode.AUTO and not build_summary["dense_index"].get("built"):
         print(
             "Auto backend fallback: evaluation is using tfidf because dense retrieval "
@@ -273,6 +330,7 @@ def command_evaluate(args: argparse.Namespace) -> int:
         requested_llm=requested_llm,
         paths=paths,
         top_k=args.top_k,
+        collection_name=args.collection_name,
     )
     average_recall = sum(result.recall_at_3 for result in results) / max(len(results), 1)
     average_faithfulness = sum(result.faithfulness_score for result in results) / max(
@@ -290,7 +348,12 @@ def command_demo(args: argparse.Namespace) -> int:
     requested_backend, requested_llm = _resolve_requested_modes(args)
     paths, _, chunks = _load_docs_and_chunks()
     if not paths.lexical_index_path.exists():
-        maybe_build_indexes(chunks, requested_backend=BackendMode.TFIDF, paths=paths)
+        maybe_build_indexes(
+            chunks,
+            requested_backend=BackendMode.TFIDF,
+            paths=paths,
+            collection_name=args.collection_name,
+        )
     demo_backend = requested_backend
     demo_llm = requested_llm
     retrieved_chunks, resolved_backend = retrieve(
@@ -298,8 +361,9 @@ def command_demo(args: argparse.Namespace) -> int:
         requested_backend=demo_backend,
         top_k=args.top_k,
         paths=paths,
+        collection_name=args.collection_name,
     )
-    _print_auto_backend_note(requested_backend, resolved_backend, paths)
+    _print_auto_backend_note(requested_backend, resolved_backend, paths, args.collection_name)
     answer = answer_question(
         question=args.question,
         retrieved_chunks=retrieved_chunks,
@@ -311,6 +375,7 @@ def command_demo(args: argparse.Namespace) -> int:
     print(f"Resolved backend: {answer.resolved_backend.value}")
     print(f"Resolved llm: {answer.resolved_llm.value}")
     print(f"Sources: {format_sources(answer.sources)}")
+    _print_retrieval_preview(answer.retrieved_chunks)
     print("")
     print(answer.answer)
     return 0

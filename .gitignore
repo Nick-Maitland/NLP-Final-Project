@@ -7,3 +7,4 @@ build/
 dist/
 *.egg-info/
 .ruff_cache/
+chroma_db/

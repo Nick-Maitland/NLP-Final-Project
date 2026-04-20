@@ -37,12 +37,14 @@ class Chunk:
 
 @dataclass(frozen=True)
 class RetrievedChunk:
+    rank: int
     chunk_id: str
     source_id: str
     title: str
     text: str
     score: float
     backend: str
+    distance: float | None = None
     metadata: dict[str, str] = field(default_factory=dict)
 
 
@@ -70,4 +72,3 @@ class EvaluationRow:
     resolved_backend: str
     resolved_llm: str
     notes: str
-

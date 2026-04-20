@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from .config import DEFAULT_TOP_K, PathConfig, get_paths
+from .config import COLLECTION_NAME, DEFAULT_TOP_K, PathConfig, get_paths
 from .generation import answer_question
 from .reporting import generate_failure_report
 from .retrievers import retrieve
@@ -68,6 +68,7 @@ def run_evaluation(
     requested_llm: LlmMode,
     paths: PathConfig | None = None,
     top_k: int = DEFAULT_TOP_K,
+    collection_name: str = COLLECTION_NAME,
 ) -> list[EvaluationRow]:
     paths = paths or get_paths()
     rows = read_csv_rows(paths.test_questions_path)
@@ -80,6 +81,7 @@ def run_evaluation(
             requested_backend=requested_backend,
             top_k=top_k,
             paths=paths,
+            collection_name=collection_name,
         )
         answer = answer_question(
             question=question,
@@ -126,4 +128,3 @@ def run_evaluation(
     )
     generate_failure_report(results, paths.failure_report_path)
     return results
-

@@ -11,6 +11,7 @@ from .schemas import BackendMode, LlmMode
 APP_NAME = "ragfaq"
 COLLECTION_NAME = "ragfaq_chunks"
 DENSE_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+DENSE_TOP_K = 3
 DEFAULT_TOP_K = 3
 DEFAULT_CHUNK_SIZE = 120
 DEFAULT_CHUNK_OVERLAP = 24
@@ -68,7 +69,7 @@ def get_paths() -> PathConfig:
         cache_dir=cache_dir,
         lexical_index_path=index_dir / "tfidf_index.json",
         chunk_cache_path=index_dir / "chunks.json",
-        chroma_dir=index_dir / "chroma",
+        chroma_dir=root_dir / "chroma_db",
         test_questions_path=root_dir / "test_questions.csv",
         failure_report_path=root_dir / "failure_case_report.md",
         readme_path=root_dir / "README.md",
@@ -96,7 +97,7 @@ def _probe_spec_only(module_name: str) -> DependencyStatus:
 
 def get_runtime_availability() -> RuntimeAvailability:
     chroma_status = _probe_dependency("chromadb")
-    sentence_status = _probe_spec_only("sentence_transformers")
+    sentence_status = _probe_dependency("sentence_transformers")
     openai_status = _probe_dependency("openai")
     return RuntimeAvailability(
         chromadb=chroma_status,

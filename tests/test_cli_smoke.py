@@ -101,6 +101,8 @@ def test_inspect_build_and_ask_offline(tmp_path: Path) -> None:
     assert ask_result.returncode == 0
     assert "Resolved backend: tfidf" in ask_result.stdout
     assert "Resolved llm: offline" in ask_result.stdout
+    assert "Retrieval results:" in ask_result.stdout
+    assert "1. source=" in ask_result.stdout
     assert "self-attention" in ask_result.stdout.lower()
 
 
@@ -125,4 +127,24 @@ def test_auto_backend_falls_back_to_tfidf_with_message(tmp_path: Path) -> None:
     assert ask_result.returncode == 0
     assert "Auto backend fallback: using tfidf" in ask_result.stdout
     assert "Resolved backend: tfidf" in ask_result.stdout
+    assert "Retrieval results:" in ask_result.stdout
 
+
+def test_build_auto_fallback_message_via_main(monkeypatch, capsys) -> None:
+    import rag_system
+
+    monkeypatch.setattr(rag_system, "_load_docs_and_chunks", lambda: ("paths", [], []))
+    monkeypatch.setattr(
+        rag_system,
+        "maybe_build_indexes",
+        lambda *args, **kwargs: {
+            "lexical_index": {"path": "/tmp/tfidf_index.json", "chunk_count": 0},
+            "dense_index": {"built": False, "reason": "MiniLM model not cached locally"},
+        },
+    )
+
+    result = rag_system.main(["build", "--backend", "auto"])
+    output = capsys.readouterr().out
+    assert result == 0
+    assert "Dense index: skipped (MiniLM model not cached locally)" in output
+    assert "Auto backend fallback: tfidf will remain the safe local default" in output
