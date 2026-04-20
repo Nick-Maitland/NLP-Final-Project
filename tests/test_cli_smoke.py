@@ -102,6 +102,9 @@ def test_inspect_build_and_ask_offline(tmp_path: Path) -> None:
     assert "Resolved backend: tfidf" in ask_result.stdout
     assert "Resolved llm: offline" in ask_result.stdout
     assert "Retrieval results:" in ask_result.stdout
+    assert "ANSWER" in ask_result.stdout
+    assert "SOURCES" in ask_result.stdout
+    assert "[1]" in ask_result.stdout
     assert "1. source=" in ask_result.stdout
     assert "self-attention" in ask_result.stdout.lower()
 
@@ -145,6 +148,30 @@ def test_auto_backend_falls_back_to_tfidf_with_message(tmp_path: Path) -> None:
     assert "Retrieval results:" in ask_result.stdout
 
 
+def test_auto_llm_falls_back_to_offline_without_api_key(tmp_path: Path) -> None:
+    temp_root = prepare_temp_root(tmp_path)
+    env = os.environ.copy()
+    env["RAGFAQ_ROOT"] = str(temp_root)
+    env.pop("OPENAI_API_KEY", None)
+
+    build_result = run_cli("build", "--backend", "tfidf", env=env)
+    assert build_result.returncode == 0
+
+    ask_result = run_cli(
+        "ask",
+        "--backend",
+        "auto",
+        "--llm",
+        "auto",
+        "--question",
+        "What is self-attention?",
+        env=env,
+    )
+    assert ask_result.returncode == 0
+    assert "Resolved llm: offline" in ask_result.stdout
+    assert "ANSWER" in ask_result.stdout
+
+
 def test_ask_does_not_write_trace_without_flag(tmp_path: Path) -> None:
     temp_root = prepare_temp_root(tmp_path)
     env = os.environ.copy()
@@ -165,6 +192,29 @@ def test_ask_does_not_write_trace_without_flag(tmp_path: Path) -> None:
     )
     assert ask_result.returncode == 0
     assert not (temp_root / "results" / "traces" / "latest_retrieval_trace.json").exists()
+
+
+def test_openai_mode_without_key_errors_clearly(tmp_path: Path) -> None:
+    temp_root = prepare_temp_root(tmp_path)
+    env = os.environ.copy()
+    env["RAGFAQ_ROOT"] = str(temp_root)
+    env.pop("OPENAI_API_KEY", None)
+
+    build_result = run_cli("build", "--backend", "tfidf", env=env)
+    assert build_result.returncode == 0
+
+    ask_result = run_cli(
+        "ask",
+        "--backend",
+        "tfidf",
+        "--llm",
+        "openai",
+        "--question",
+        "What is self-attention?",
+        env=env,
+    )
+    assert ask_result.returncode != 0
+    assert "OPENAI_API_KEY is not set" in ask_result.stderr
 
 
 def test_build_auto_fallback_message_via_main(monkeypatch, capsys) -> None:

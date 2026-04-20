@@ -272,12 +272,31 @@ def _print_retrieval_preview(chunks) -> None:
 
 
 def _print_context(chunks) -> None:
-    print("Retrieved context:")
+    print("CONTEXT")
     for chunk in chunks:
+        print(f"[{chunk.rank}] {_snippet(chunk.text, limit=220)}")
+
+
+def _print_sources(chunks) -> None:
+    print("SOURCES")
+    for chunk in chunks:
+        topic = chunk.metadata.get("topic", "general")
         source = chunk.metadata.get("source", "unknown")
-        print(f"[{chunk.rank}] {chunk.chunk_id} source={source} source_id={chunk.source_id}")
-        print(chunk.text)
+        chunk_index = chunk.metadata.get("chunk_index", "0")
+        print(f"[{chunk.rank}] {chunk.source_id} | {topic} | {source} | {chunk_index}")
+
+
+def _print_answer_sections(answer, show_context: bool) -> None:
+    answer_text = answer.answer_text or answer.answer
+    print("ANSWER")
+    print(answer_text)
+    print("")
+    _print_sources(answer.retrieved_chunks)
+    for warning in answer.citation_warnings:
+        print(f"WARNING: {warning}")
+    if show_context:
         print("")
+        _print_context(answer.retrieved_chunks)
 
 
 def _write_trace(trace_payload: dict[str, object] | None, output_path: Path | None) -> None:
@@ -390,14 +409,10 @@ def command_ask(args: argparse.Namespace) -> int:
     print(f"Question: {args.question}")
     print(f"Resolved backend: {answer.resolved_backend.value}")
     print(f"Resolved llm: {answer.resolved_llm.value}")
-    print(f"Sources: {format_sources(answer.sources)}")
     _print_retrieval_preview(answer.retrieved_chunks)
-    if args.show_context:
-        print("")
-        _print_context(answer.retrieved_chunks)
-    _write_trace(retrieval.trace, _resolve_trace_output_path(args, paths))
     print("")
-    print(answer.answer)
+    _print_answer_sections(answer, args.show_context)
+    _write_trace(retrieval.trace, _resolve_trace_output_path(args, paths))
     return 0
 
 
@@ -477,14 +492,10 @@ def command_demo(args: argparse.Namespace) -> int:
     print(f"Question: {args.question}")
     print(f"Resolved backend: {answer.resolved_backend.value}")
     print(f"Resolved llm: {answer.resolved_llm.value}")
-    print(f"Sources: {format_sources(answer.sources)}")
     _print_retrieval_preview(answer.retrieved_chunks)
-    if args.show_context:
-        print("")
-        _print_context(answer.retrieved_chunks)
-    _write_trace(retrieval.trace, _resolve_trace_output_path(args, paths))
     print("")
-    print(answer.answer)
+    _print_answer_sections(answer, args.show_context)
+    _write_trace(retrieval.trace, _resolve_trace_output_path(args, paths))
     return 0
 
 

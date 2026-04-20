@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import COLLECTION_NAME, DEFAULT_CANDIDATE_K, DEFAULT_TOP_K, PathConfig, get_paths
-from .generation import answer_question
+from .generation import answer_question, strip_citation_markers
 from .reporting import generate_failure_report
 from .retrievers import retrieve
 from .schemas import BackendMode, EvaluationRow, LlmMode
@@ -45,6 +45,7 @@ def _sentence_supported(sentence: str, context: str, context_tokens: set[str]) -
 
 
 def score_faithfulness(answer: str, context_chunks: list[str]) -> float:
+    answer = strip_citation_markers(answer)
     context = " ".join(context_chunks)
     context_tokens = set(tokenize(context))
     sentences = sentence_split(answer)
@@ -113,7 +114,7 @@ def run_evaluation(
 
         recall_at_3 = _score_recall_at_3(row["expected_source_id"], retrieved_source_ids)
         faithfulness_score = score_faithfulness(
-            answer.answer, [chunk.text for chunk in retrieved_chunks]
+            answer.answer_text, [chunk.text for chunk in retrieved_chunks]
         )
         result = EvaluationRow(
             question_id=row["question_id"],
@@ -123,7 +124,7 @@ def run_evaluation(
             expected_keywords=row["expected_keywords"],
             retrieved_source_ids=";".join(retrieved_source_ids),
             recall_at_3=recall_at_3,
-            generated_answer=answer.answer,
+            generated_answer=answer.answer_text,
             faithfulness_score=faithfulness_score,
             resolved_backend=answer.resolved_backend.value,
             resolved_llm=answer.resolved_llm.value,

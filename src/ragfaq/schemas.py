@@ -70,6 +70,10 @@ class AnswerResult:
     resolved_backend: BackendMode
     resolved_llm: LlmMode
     retrieved_chunks: list[RetrievedChunk]
+    answer_text: str = ""
+    raw_answer_text: str = ""
+    citation_warnings: list[str] = field(default_factory=list)
+    abstained: bool = False
 
 
 @dataclass(frozen=True)
