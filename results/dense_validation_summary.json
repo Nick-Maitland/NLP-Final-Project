@@ -1,0 +1,81 @@
+{
+  "status": "skipped",
+  "generated_at": "2026-04-20T15:42:55.080429+00:00",
+  "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+  "collection_name": "ragfaq_dense_validation",
+  "question": "What is self-attention?",
+  "top_k": 3,
+  "reason": "sentence_transformers import unavailable: ImportError: tokenizers>=0.11.1,!=0.11.3,<0.14 is required for a normal functioning of this module, but found tokenizers==0.22.1.\nTry: pip install transformers -U or pip install -e '.[dev]' if you're working with git main",
+  "chunk_count": 0,
+  "stored_count": 0,
+  "retrieved_count": 0,
+  "retrieved_chunks": [],
+  "checks": [
+    {
+      "id": "chromadb_import",
+      "name": "Probe chromadb import",
+      "status": "passed",
+      "detail": "chromadb imported successfully."
+    },
+    {
+      "id": "sentence_transformers_import",
+      "name": "Probe sentence_transformers import",
+      "status": "skipped",
+      "detail": "sentence_transformers import unavailable: ImportError: tokenizers>=0.11.1,!=0.11.3,<0.14 is required for a normal functioning of this module, but found tokenizers==0.22.1.\nTry: pip install transformers -U or pip install -e '.[dev]' if you're working with git main"
+    },
+    {
+      "id": "local_model_cache",
+      "name": "Verify local MiniLM cache presence",
+      "status": "not_run",
+      "detail": ""
+    },
+    {
+      "id": "local_model_load",
+      "name": "Load MiniLM with local_files_only=True",
+      "status": "not_run",
+      "detail": ""
+    },
+    {
+      "id": "load_knowledge_base",
+      "name": "Load repo documents and chunks",
+      "status": "not_run",
+      "detail": ""
+    },
+    {
+      "id": "build_chroma_dir",
+      "name": "Prepare Chroma validation collection",
+      "status": "not_run",
+      "detail": ""
+    },
+    {
+      "id": "collection_add",
+      "name": "Store chunks with collection.add(...)",
+      "status": "not_run",
+      "detail": ""
+    },
+    {
+      "id": "stored_count",
+      "name": "Verify stored chunk count",
+      "status": "not_run",
+      "detail": ""
+    },
+    {
+      "id": "collection_query",
+      "name": "Query Chroma with n_results=3",
+      "status": "not_run",
+      "detail": ""
+    },
+    {
+      "id": "top_3_results",
+      "name": "Verify exactly top-3 chunks are returned",
+      "status": "not_run",
+      "detail": ""
+    },
+    {
+      "id": "source_references",
+      "name": "Verify source references are returned",
+      "status": "not_run",
+      "detail": ""
+    }
+  ]
+}

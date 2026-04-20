@@ -54,6 +54,19 @@ def prepare_temp_root(tmp_path: Path) -> Path:
             ]
         )
     (tmp_path / "failure_case_report.md").write_text("# Failure Case Report\n", encoding="utf-8")
+    (tmp_path / "PROJECT_REPORT.md").write_text(
+        "\n".join(
+            [
+                "# Project Report",
+                "",
+                "<!-- dense-validation:start -->",
+                "placeholder",
+                "<!-- dense-validation:end -->",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
     return tmp_path
 
 
@@ -70,6 +83,35 @@ def run_cli(*args: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]
         text=True,
         check=False,
     )
+
+
+def run_dense_validation_script(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    command_env = env.copy()
+    command_env.setdefault("HF_HUB_OFFLINE", "1")
+    command_env.setdefault("TRANSFORMERS_OFFLINE", "1")
+    command_env.setdefault("TOKENIZERS_PARALLELISM", "false")
+    return subprocess.run(
+        [sys.executable, "scripts/validate_dense_path.py"],
+        cwd=REPO_ROOT,
+        env=command_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def prepare_shadow_missing_dense_modules(tmp_path: Path) -> Path:
+    shadow_dir = tmp_path / "shadow_modules"
+    shadow_dir.mkdir()
+    (shadow_dir / "chromadb.py").write_text(
+        'raise ImportError("shadowed chromadb import failure")\n',
+        encoding="utf-8",
+    )
+    (shadow_dir / "sentence_transformers.py").write_text(
+        'raise ImportError("shadowed sentence_transformers import failure")\n',
+        encoding="utf-8",
+    )
+    return shadow_dir
 
 
 def test_help_works() -> None:
@@ -161,6 +203,58 @@ def test_auto_backend_falls_back_to_tfidf_with_message(tmp_path: Path) -> None:
     assert "Auto backend fallback: using tfidf" in ask_result.stdout
     assert "Resolved backend: tfidf" in ask_result.stdout
     assert "Retrieval results:" in ask_result.stdout
+
+
+def test_explicit_chroma_commands_fail_clearly_without_silent_fallback(tmp_path: Path) -> None:
+    temp_root = prepare_temp_root(tmp_path)
+    shadow_dir = prepare_shadow_missing_dense_modules(tmp_path)
+    env = os.environ.copy()
+    env["RAGFAQ_ROOT"] = str(temp_root)
+    env["PYTHONPATH"] = str(shadow_dir)
+
+    build_result = run_cli("build", "--backend", "chroma", "--rebuild", env=env)
+    assert build_result.returncode != 0
+    assert "Dense build was requested but unavailable." in build_result.stderr
+    assert "Install the full dense stack from requirements.txt" in build_result.stderr
+    assert "all-MiniLM-L6-v2" in build_result.stderr
+    assert "Auto backend fallback" not in build_result.stdout
+
+    ask_result = run_cli(
+        "ask",
+        "--backend",
+        "chroma",
+        "--llm",
+        "offline",
+        "--question",
+        "What is self-attention?",
+        env=env,
+    )
+    assert ask_result.returncode != 0
+    assert "Dense retrieval requested but unavailable." in ask_result.stderr
+    assert "Build the dense index with `python rag_system.py build --backend chroma --rebuild`" in ask_result.stderr
+    assert "Auto backend fallback" not in ask_result.stdout
+
+    evaluate_result = run_cli("evaluate", "--backend", "chroma", "--llm", "offline", env=env)
+    assert evaluate_result.returncode != 0
+    assert "Dense build was requested but unavailable." in evaluate_result.stderr
+    assert "Auto backend fallback" not in evaluate_result.stdout
+
+
+def test_validate_dense_path_script_prints_clear_skip_message_when_dense_deps_missing(
+    tmp_path: Path,
+) -> None:
+    temp_root = prepare_temp_root(tmp_path)
+    shadow_dir = prepare_shadow_missing_dense_modules(tmp_path)
+    env = os.environ.copy()
+    env["RAGFAQ_ROOT"] = str(temp_root)
+    env["PYTHONPATH"] = str(shadow_dir)
+
+    result = run_dense_validation_script(env=env)
+    assert result.returncode == 0
+    assert "Dense validation status: skipped" in result.stdout
+    assert "Dense validation skipped:" in result.stdout
+    assert (temp_root / "results" / "dense_validation_summary.json").exists()
+    assert (temp_root / "results" / "dense_validation_report.md").exists()
 
 
 def test_auto_llm_falls_back_to_offline_without_api_key(tmp_path: Path) -> None:

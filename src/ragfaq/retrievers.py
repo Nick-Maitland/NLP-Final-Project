@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from .config import (
     COLLECTION_NAME,
+    DENSE_MODEL_NAME,
     DENSE_TOP_K,
     DEFAULT_CANDIDATE_K,
     DEFAULT_TOP_K,
@@ -16,7 +17,7 @@ from .config import (
     get_runtime_availability,
     resolve_query_backend,
 )
-from .embeddings import SentenceTransformerEmbeddingProvider, _load_sentence_transformer_class
+from .embeddings import SentenceTransformerEmbeddingProvider
 from .schemas import BackendMode, Chunk, RetrievalRunResult, RetrievedChunk
 from .utils import (
     RagFaqError,
@@ -94,19 +95,46 @@ def _dense_backend_available(paths: PathConfig | None = None) -> tuple[bool, str
     availability = get_runtime_availability()
     if not availability.chromadb.available:
         return False, f"chromadb unavailable: {availability.chromadb.reason}"
-    try:
-        _load_sentence_transformer_class()
-    except Exception as exc:
-        return (
-            False,
-            "sentence-transformers unavailable: "
-            f"{type(exc).__name__}: {exc}",
-        )
     provider = SentenceTransformerEmbeddingProvider(paths.cache_dir)
-    cached, detail = provider.local_model_status()
-    if not cached:
-        return False, detail
+    try:
+        provider.ensure_model_loaded()
+    except RagFaqError as exc:
+        return False, str(exc)
     return True, ""
+
+
+def _dense_runtime_guidance() -> str:
+    return (
+        "Install the full dense stack from requirements.txt and make sure "
+        f"{DENSE_MODEL_NAME} is cached locally."
+    )
+
+
+def _dense_build_error_message(requested_backend: BackendMode, reason: str) -> str:
+    command = (
+        "python rag_system.py build --backend hybrid"
+        if requested_backend is BackendMode.HYBRID
+        else "python rag_system.py build --backend chroma --rebuild"
+    )
+    return (
+        "Dense build was requested but unavailable. "
+        f"{_dense_runtime_guidance()} Then rerun `{command}`. "
+        f"Reason: {reason}"
+    )
+
+
+def _dense_query_error_message(requested_backend: BackendMode, reason: str) -> str:
+    build_command = (
+        "python rag_system.py build --backend hybrid"
+        if requested_backend is BackendMode.HYBRID
+        else "python rag_system.py build --backend chroma --rebuild"
+    )
+    return (
+        "Dense retrieval requested but unavailable. "
+        f"{_dense_runtime_guidance()} Build the dense index with `{build_command}` "
+        "before retrying the command. "
+        f"Reason: {reason}"
+    )
 
 
 def dense_index_exists(
@@ -158,10 +186,7 @@ def maybe_build_indexes(
     dense_ok, reason = _dense_backend_available(paths)
     if not dense_ok:
         if requested_backend in {BackendMode.CHROMA, BackendMode.HYBRID}:
-            raise RagFaqError(
-                "Dense build was requested but unavailable. "
-                f"Reason: {reason}"
-            )
+            raise RagFaqError(_dense_build_error_message(requested_backend, reason))
         summary["dense_index"] = {"built": False, "reason": reason}
         return summary
 
@@ -478,6 +503,31 @@ def query_hybrid_index(
     )
 
 
+def _tfidf_result(
+    *,
+    question: str,
+    top_k: int,
+    chunks: list[RetrievedChunk],
+    fallback_reason: str | None = None,
+) -> RetrievalRunResult:
+    trace = _build_trace(
+        question=question,
+        backend=BackendMode.TFIDF,
+        top_k=top_k,
+        candidate_k=top_k,
+        candidates=chunks,
+        finals=chunks,
+    )
+    if fallback_reason:
+        trace["auto_fallback_reason"] = fallback_reason
+    return RetrievalRunResult(
+        chunks=chunks,
+        resolved_backend=BackendMode.TFIDF,
+        trace=trace,
+        fallback_reason=fallback_reason,
+    )
+
+
 def retrieve(
     question: str,
     requested_backend: BackendMode,
@@ -490,18 +540,7 @@ def retrieve(
     lexical_ready = lexical_index_exists(paths)
     if requested_backend is BackendMode.TFIDF:
         chunks = query_lexical_index(question, top_k=top_k, paths=paths)
-        return RetrievalRunResult(
-            chunks=chunks,
-            resolved_backend=BackendMode.TFIDF,
-            trace=_build_trace(
-                question=question,
-                backend=BackendMode.TFIDF,
-                top_k=top_k,
-                candidate_k=top_k,
-                candidates=chunks,
-                finals=chunks,
-            ),
-        )
+        return _tfidf_result(question=question, top_k=top_k, chunks=chunks)
 
     dense_backend_ok, dense_reason = _dense_backend_available(paths)
     dense_ready = dense_index_exists(paths, collection_name=collection_name) and dense_backend_ok
@@ -509,64 +548,57 @@ def retrieve(
 
     if requested_backend is BackendMode.CHROMA and not dense_ready:
         suffix = dense_reason if not dense_backend_ok else "Dense index not built yet."
-        raise RagFaqError(
-            "Dense retrieval requested but unavailable. "
-            "Run `python rag_system.py build --backend chroma --rebuild` after fixing dependencies. "
-            f"{suffix}"
-        )
+        raise RagFaqError(_dense_query_error_message(requested_backend, suffix))
     if requested_backend is BackendMode.HYBRID and not (lexical_ready and dense_ready):
         suffix = dense_reason if not dense_backend_ok else "Both lexical and dense indexes must exist."
-        raise RagFaqError(
-            "Hybrid retrieval requested but unavailable. "
-            "Run `python rag_system.py build --backend hybrid` after fixing dependencies. "
-            f"{suffix}"
-        )
+        raise RagFaqError(_dense_query_error_message(requested_backend, suffix))
 
     if resolved_backend is BackendMode.TFIDF:
         chunks = query_lexical_index(question, top_k=top_k, paths=paths)
-        return RetrievalRunResult(
-            chunks=chunks,
-            resolved_backend=resolved_backend,
-            trace=_build_trace(
-                question=question,
-                backend=resolved_backend,
+        return _tfidf_result(question=question, top_k=top_k, chunks=chunks)
+
+    try:
+        if resolved_backend is BackendMode.CHROMA:
+            chunks = query_dense_index(
+                question,
                 top_k=top_k,
-                candidate_k=top_k,
-                candidates=chunks,
-                finals=chunks,
-            ),
-        )
-    if resolved_backend is BackendMode.CHROMA:
-        chunks = query_dense_index(
+                paths=paths,
+                collection_name=collection_name,
+            )
+            return RetrievalRunResult(
+                chunks=chunks,
+                resolved_backend=resolved_backend,
+                trace=_build_trace(
+                    question=question,
+                    backend=resolved_backend,
+                    top_k=top_k,
+                    candidate_k=top_k,
+                    candidates=chunks,
+                    finals=chunks,
+                ),
+            )
+        chunks, trace = query_hybrid_index(
             question,
             top_k=top_k,
+            candidate_k=candidate_k,
             paths=paths,
             collection_name=collection_name,
         )
         return RetrievalRunResult(
             chunks=chunks,
             resolved_backend=resolved_backend,
-            trace=_build_trace(
-                question=question,
-                backend=resolved_backend,
-                top_k=top_k,
-                candidate_k=top_k,
-                candidates=chunks,
-                finals=chunks,
-            ),
+            trace=trace,
         )
-    chunks, trace = query_hybrid_index(
-        question,
-        top_k=top_k,
-        candidate_k=candidate_k,
-        paths=paths,
-        collection_name=collection_name,
-    )
-    return RetrievalRunResult(
-        chunks=chunks,
-        resolved_backend=resolved_backend,
-        trace=trace,
-    )
+    except RagFaqError as exc:
+        if requested_backend is BackendMode.AUTO and lexical_ready:
+            chunks = query_lexical_index(question, top_k=top_k, paths=paths)
+            return _tfidf_result(
+                question=question,
+                top_k=top_k,
+                chunks=chunks,
+                fallback_reason=str(exc),
+            )
+        raise
 
 
 def inspect_index_state(

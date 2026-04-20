@@ -97,6 +97,8 @@ def _create_minimal_submission_repo(root: Path, *, include_faithfulness: bool = 
     _write_text(root / "tests" / "test_dummy.py", "def test_dummy():\n    assert True\n")
     _write_text(root / "results" / "evaluation_summary.json", "{}\n")
     _write_text(root / "results" / "evaluation_report.md", "# Report\n")
+    _write_text(root / "results" / "dense_validation_summary.json", "{}\n")
+    _write_text(root / "results" / "dense_validation_report.md", "# Dense Validation Report\n")
     _write_text(root / "results" / "test_questions_scored.csv", "question_id\nQ1\n")
     _write_test_questions_csv(root / "test_questions.csv", include_faithfulness=include_faithfulness)
 
@@ -148,6 +150,8 @@ def test_submission_package_creates_whitelisted_zip_and_excludes_caches(tmp_path
     assert "src/ragfaq/stub.py" in names
     assert "knowledge_base/faqs.csv" in names
     assert "results/evaluation_summary.json" in names
+    assert "results/dense_validation_summary.json" in names
+    assert "results/dense_validation_report.md" in names
     assert ".venv/bin/python" not in names
     assert ".git/HEAD" not in names
     assert "src/__pycache__/stub.pyc" not in names

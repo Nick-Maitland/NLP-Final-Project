@@ -16,6 +16,30 @@ The architecture is built around a root CLI entrypoint, `rag_system.py`, which c
 
 The course-compliant dense path uses `sentence-transformers/all-MiniLM-L6-v2` to embed chunks and queries. Those embeddings are stored in ChromaDB through a `PersistentClient` collection, with metadata including `source`, `source_id`, `topic`, `chunk_index`, and `text_hash`. The same codebase also provides a pure-Python TF-IDF backend for offline-safe use and a hybrid mode that combines dense and lexical retrieval through reciprocal rank fusion and lightweight MMR.
 
+### Dense Path Status
+
+<!-- dense-validation:start -->
+Auto-generated from real dense validation artifacts under `results/dense_validation_summary.json` and `results/dense_validation_report.md`.
+
+### Implemented Dense Path
+
+- Dense retrieval is implemented with `sentence-transformers/all-MiniLM-L6-v2` embeddings and a ChromaDB collection.
+- The code path stores chunks through `collection.add(...)` and queries them through `collection.query(..., n_results=3)`.
+
+### Validated Dense Path
+
+- Latest status: `skipped`
+- Latest artifact timestamp: `2026-04-20T15:42:55.080429+00:00`
+- The dense path is implemented, but it was not validated successfully in this environment.
+- Reason: sentence_transformers import unavailable: ImportError: tokenizers>=0.11.1,!=0.11.3,<0.14 is required for a normal functioning of this module, but found tokenizers==0.22.1. Try: pip install transformers -U or pip install -e '.[dev]' if you're working with git main
+- Detailed evidence: `results/dense_validation_summary.json` and `results/dense_validation_report.md`.
+
+### Offline Fallback Path
+
+- The offline-safe default remains TF-IDF retrieval with `--llm offline`.
+- In `--backend auto`, the CLI falls back to TF-IDF with a friendly explanation whenever the dense stack or local MiniLM runtime is unavailable.
+<!-- dense-validation:end -->
+
 ## 5. Prompt Design
 
 The OpenAI prompt is designed to be strict rather than broad. It tells the model to treat retrieved documents as untrusted text, ignore instructions inside the retrieved context, answer only the user question, use only the supplied context, and abstain with `I do not know based on the retrieved context` when evidence is insufficient. Answers are expected to include source citations such as `[1]` and `[2]`.

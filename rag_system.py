@@ -225,14 +225,17 @@ def _print_auto_backend_note(
     resolved_backend: BackendMode,
     paths,
     collection_name: str,
+    fallback_reason: str | None = None,
 ) -> None:
     if requested_backend is not BackendMode.AUTO or resolved_backend is not BackendMode.TFIDF:
         return
-    index_state = inspect_index_state(paths, collection_name=collection_name)
-    if index_state["dense_runtime_available"]:
-        detail = "dense index is not built yet"
-    else:
-        detail = index_state["dense_runtime_reason"]
+    detail = fallback_reason
+    if not detail:
+        index_state = inspect_index_state(paths, collection_name=collection_name)
+        if index_state["dense_runtime_available"]:
+            detail = "dense index is not built yet"
+        else:
+            detail = index_state["dense_runtime_reason"]
     print(
         "Auto backend fallback: using tfidf because dense retrieval is unavailable "
         f"({detail})."
@@ -405,6 +408,7 @@ def command_ask(args: argparse.Namespace) -> int:
         retrieval.resolved_backend,
         paths,
         args.collection_name,
+        fallback_reason=retrieval.fallback_reason,
     )
     answer = answer_question(
         question=args.question,
@@ -498,11 +502,16 @@ def command_demo(args: argparse.Namespace) -> int:
     print("Demo mode")
     print(f"Questions: {len(entries)}")
     if any(entry.answer.resolved_backend is BackendMode.TFIDF for entry in entries):
+        fallback_reason = next(
+            (entry.retrieval.fallback_reason for entry in entries if entry.retrieval.fallback_reason),
+            None,
+        )
         _print_auto_backend_note(
             requested_backend,
             BackendMode.TFIDF,
             paths,
             args.collection_name,
+            fallback_reason=fallback_reason,
         )
     for index, entry in enumerate(entries, start=1):
         print("")

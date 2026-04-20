@@ -476,3 +476,77 @@ def test_query_hybrid_index_uses_candidate_pool_fusion_and_trace(
     assert len(trace["candidate_chunks"]) == 3
     assert len(trace["final_chunks"]) == 2
     assert trace["final_chunks"][0]["final_rank"] == 1
+
+
+def test_retrieve_auto_falls_back_to_tfidf_when_dense_query_fails(monkeypatch) -> None:
+    lexical = [
+        RetrievedChunk(
+            rank=1,
+            chunk_id="doc::chunk000",
+            source_id="doc",
+            title="Doc",
+            text="Self-attention compares tokens.",
+            score=7.0,
+            backend="tfidf",
+            lexical_rank=1,
+            lexical_score=7.0,
+            metadata={"source": "knowledge_base/faqs.csv", "topic": "attention", "chunk_index": "0"},
+        )
+    ]
+
+    monkeypatch.setattr(retriever_module, "lexical_index_exists", lambda paths=None: True)
+    monkeypatch.setattr(retriever_module, "_dense_backend_available", lambda paths=None: (True, ""))
+    monkeypatch.setattr(
+        retriever_module,
+        "dense_index_exists",
+        lambda paths=None, collection_name="": True,
+    )
+    monkeypatch.setattr(
+        retriever_module,
+        "query_lexical_index",
+        lambda question, top_k, paths=None: lexical,
+    )
+
+    def _raise_dense_error(*args, **kwargs):
+        raise RagFaqError("Dense query-time embedding failed for MiniLM.")
+
+    monkeypatch.setattr(retriever_module, "query_dense_index", _raise_dense_error)
+
+    result = retriever_module.retrieve(
+        question="What is self-attention?",
+        requested_backend=BackendMode.AUTO,
+        top_k=1,
+    )
+    assert result.resolved_backend is BackendMode.TFIDF
+    assert result.fallback_reason == "Dense query-time embedding failed for MiniLM."
+    assert result.trace is not None
+    assert result.trace["auto_fallback_reason"] == "Dense query-time embedding failed for MiniLM."
+
+
+def test_parser_accepts_explicit_chroma_build_ask_and_evaluate_commands() -> None:
+    parser = rag_system.build_parser()
+
+    build_args = parser.parse_args(["build", "--backend", "chroma", "--rebuild"])
+    ask_args = parser.parse_args(
+        [
+            "ask",
+            "--backend",
+            "chroma",
+            "--llm",
+            "offline",
+            "--question",
+            "What is self-attention?",
+        ]
+    )
+    evaluate_args = parser.parse_args(["evaluate", "--backend", "chroma", "--llm", "offline"])
+
+    assert build_args.command == "build"
+    assert build_args.backend == "chroma"
+    assert build_args.rebuild is True
+    assert ask_args.command == "ask"
+    assert ask_args.backend == "chroma"
+    assert ask_args.llm == "offline"
+    assert ask_args.question == "What is self-attention?"
+    assert evaluate_args.command == "evaluate"
+    assert evaluate_args.backend == "chroma"
+    assert evaluate_args.llm == "offline"

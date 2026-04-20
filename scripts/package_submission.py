@@ -25,6 +25,8 @@ INCLUDE_PATHS = [
     "tests",
     "results/evaluation_summary.json",
     "results/evaluation_report.md",
+    "results/dense_validation_summary.json",
+    "results/dense_validation_report.md",
     "results/test_questions_scored.csv",
 ]
 EXCLUDED_DIR_NAMES = {

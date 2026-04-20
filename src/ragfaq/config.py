@@ -11,6 +11,8 @@ from .schemas import BackendMode, LlmMode
 APP_NAME = "ragfaq"
 COLLECTION_NAME = "ragfaq_chunks"
 DENSE_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+DENSE_VALIDATION_COLLECTION_NAME = "ragfaq_dense_validation"
+DENSE_VALIDATION_QUESTION = "What is self-attention?"
 DENSE_TOP_K = 3
 DEFAULT_TOP_K = 3
 DEFAULT_CANDIDATE_K = 12
@@ -53,6 +55,8 @@ class PathConfig:
     failure_report_path: Path
     backend_comparison_summary_path: Path
     backend_comparison_table_path: Path
+    dense_validation_summary_path: Path
+    dense_validation_report_path: Path
     readme_path: Path
     project_report_path: Path
     requirements_path: Path
@@ -109,6 +113,8 @@ def get_paths() -> PathConfig:
         readme_path=root_dir / "README.md",
         backend_comparison_summary_path=comparisons_dir / "backend_comparison_summary.json",
         backend_comparison_table_path=comparisons_dir / "backend_comparison_table.md",
+        dense_validation_summary_path=results_dir / "dense_validation_summary.json",
+        dense_validation_report_path=results_dir / "dense_validation_report.md",
         project_report_path=root_dir / "PROJECT_REPORT.md",
         requirements_path=root_dir / "requirements.txt",
     )

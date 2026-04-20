@@ -60,6 +60,7 @@ class RetrievalRunResult:
     chunks: list[RetrievedChunk]
     resolved_backend: BackendMode
     trace: dict[str, object] | None = None
+    fallback_reason: str | None = None
 
 
 @dataclass(frozen=True)

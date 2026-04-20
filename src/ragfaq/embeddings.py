@@ -119,10 +119,13 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
             ) from exc
         return self._model
 
+    def ensure_model_loaded(self):
+        return self._load_model()
+
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
-        model = self._load_model()
+        model = self.ensure_model_loaded()
         vectors = model.encode(
             texts,
             batch_size=EMBED_BATCH_SIZE,
