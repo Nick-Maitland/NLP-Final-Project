@@ -82,12 +82,26 @@ class AnswerResult:
 
 
 @dataclass(frozen=True)
+class BenchmarkQuestion:
+    question_id: str
+    question: str
+    expected_source_id: str
+    expected_topic: str
+    answerable: bool
+    question_type: str
+    difficulty: str
+    notes: str
+
+
+@dataclass(frozen=True)
 class EvaluationRow:
     question_id: str
     question: str
     expected_source_id: str
     expected_topic: str
     answerable: bool
+    question_type: str
+    difficulty: str
     retrieved_source_ids: str
     retrieval_recall_at_3: float | None
     reciprocal_rank: float | None

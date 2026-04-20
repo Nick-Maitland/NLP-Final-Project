@@ -12,6 +12,7 @@ from typing import Callable
 
 REQUIRED_FILES = [
     "rag_system.py",
+    "evaluation_questions.csv",
     "test_questions.csv",
     "failure_case_report.md",
     "README.md",

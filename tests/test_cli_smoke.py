@@ -17,7 +17,7 @@ def prepare_temp_root(tmp_path: Path) -> Path:
         "in the same sequence and build contextual representations.",
         encoding="utf-8",
     )
-    with (tmp_path / "test_questions.csv").open("w", encoding="utf-8", newline="") as handle:
+    with (tmp_path / "evaluation_questions.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(
             [
@@ -26,13 +26,8 @@ def prepare_temp_root(tmp_path: Path) -> Path:
                 "expected_source_id",
                 "expected_topic",
                 "answerable",
-                "retrieved_source_ids",
-                "retrieval_recall_at_3",
-                "reciprocal_rank",
-                "faithfulness_score",
-                "citation_valid",
-                "abstention_correct",
-                "answer",
+                "question_type",
+                "difficulty",
                 "notes",
             ]
         )
@@ -43,14 +38,9 @@ def prepare_temp_root(tmp_path: Path) -> Path:
                 "sample",
                 "attention",
                 "true",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
                 "single-hop",
+                "intro",
+                "",
             ]
         )
     (tmp_path / "failure_case_report.md").write_text("# Failure Case Report\n", encoding="utf-8")

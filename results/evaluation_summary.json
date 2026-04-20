@@ -9,7 +9,7 @@
   "abstention_accuracy_unanswerable": 1.0,
   "false_abstention_rate_answerable": 0.0,
   "avg_latency_ms": 1.53,
-  "median_latency_ms": 1.47,
+  "median_latency_ms": 1.34,
   "per_topic": {
     "attention": {
       "question_count": 3,

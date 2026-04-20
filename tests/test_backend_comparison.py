@@ -47,7 +47,7 @@ def _prepare_comparison_root(tmp_path: Path) -> Path:
         "Vector store metadata helps trace retrieved chunks back to their source.\n",
         encoding="utf-8",
     )
-    with (tmp_path / "test_questions.csv").open("w", encoding="utf-8", newline="") as handle:
+    with (tmp_path / "evaluation_questions.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(
             [
@@ -56,13 +56,8 @@ def _prepare_comparison_root(tmp_path: Path) -> Path:
                 "expected_source_id",
                 "expected_topic",
                 "answerable",
-                "retrieved_source_ids",
-                "retrieval_recall_at_3",
-                "reciprocal_rank",
-                "faithfulness_score",
-                "citation_valid",
-                "abstention_correct",
-                "answer",
+                "question_type",
+                "difficulty",
                 "notes",
             ]
         )
@@ -73,14 +68,9 @@ def _prepare_comparison_root(tmp_path: Path) -> Path:
                 "sample",
                 "attention",
                 "true",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
                 "single-hop",
+                "intro",
+                "",
             ]
         )
         writer.writerow(
@@ -90,16 +80,12 @@ def _prepare_comparison_root(tmp_path: Path) -> Path:
                 "",
                 "out_of_scope",
                 "false",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
                 "out_of_scope",
+                "advanced",
+                "geography",
             ]
         )
+    (tmp_path / "test_questions.csv").write_text("sentinel_root_scored_csv\n", encoding="utf-8")
     (tmp_path / "results").mkdir()
     (tmp_path / "results" / "evaluation_summary.json").write_text(
         '{"sentinel": "summary"}\n',

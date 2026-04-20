@@ -8,15 +8,16 @@ This checklist records the current repository evidence for the final Project 10 
 | --- | --- |
 | Root `rag_system.py` entrypoint | Present at `rag_system.py` and used by the documented commands `python rag_system.py build ...`, `ask ...`, `evaluate ...`, `inspect-kb`, and `demo ...` |
 | Root `knowledge_base/` folder | Present at `knowledge_base/` with `faqs.csv` plus supporting notes under `knowledge_base/docs/` |
+| Clean benchmark `evaluation_questions.csv` | Present at `evaluation_questions.csv` with the canonical input-only benchmark columns and 30 fixed questions |
 | Scored `test_questions.csv` | Present at `test_questions.csv` with 30 scored rows and the columns `retrieval_recall_at_3`, `reciprocal_rank`, `faithfulness_score`, `citation_valid`, `abstention_correct`, and `answer` |
 | Failure-case report | Present at `failure_case_report.md` with concrete weak examples from the latest evaluation run |
 | ChromaDB implementation | Dense vector-store code is present under `src/ragfaq/vector_store.py` and uses `chromadb.PersistentClient`, `collection.add(...)`, and `collection.query(...)` |
 | `sentence-transformers/all-MiniLM-L6-v2` embedding path | Dense embedding configuration is present in `src/ragfaq/config.py` and implemented in `src/ragfaq/embeddings.py` through `SentenceTransformerEmbeddingProvider` |
 | GPT-4o-mini generation path | OpenAI-backed generation is present in `src/ragfaq/generation.py` through `OpenAIGenerator`, which targets `gpt-4o-mini` when `OPENAI_API_KEY` is available |
 | Offline fallback path | Offline-safe retrieval and answer generation are present through `--backend tfidf`, `--llm offline`, and `--backend auto --llm auto` fallback behavior |
-| 30-question evaluation set | `test_questions.csv` contains 30 scored questions, which is the enforced course-sized evaluation set used by this prototype |
-| Retrieval Recall@3 evaluation | The current aggregate Recall@3 result is recorded in `results/evaluation_summary.json` as `0.92` |
-| Faithfulness evaluation | The current aggregate faithfulness result is recorded in `results/evaluation_summary.json` as `0.85` |
+| 30-question evaluation set | `evaluation_questions.csv` contains the stable 30-question benchmark, and `test_questions.csv` contains the corresponding scored course artifact |
+| Retrieval Recall@3 evaluation | The current aggregate Recall@3 result is recorded in `results/evaluation_summary.json` as `0.88` |
+| Faithfulness evaluation | The current aggregate faithfulness result is recorded in `results/evaluation_summary.json` as `0.91` |
 
 ## Course-Compliant Commands
 
@@ -39,6 +40,8 @@ python rag_system.py ask --backend chroma --llm openai --question "What is self-
 
 ## Verified Artifacts
 
+- `evaluation_questions.csv`
+- `test_questions.csv`
 - `results/evaluation_summary.json`
 - `results/evaluation_report.md`
 - `results/test_questions_scored.csv`

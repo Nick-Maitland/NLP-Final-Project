@@ -14,6 +14,7 @@ INCLUDE_PATHS = [
     "rag_system.py",
     "src",
     "knowledge_base",
+    "evaluation_questions.csv",
     "test_questions.csv",
     "failure_case_report.md",
     "PROJECT_REPORT.md",

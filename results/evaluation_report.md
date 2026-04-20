@@ -12,7 +12,7 @@
 - Abstention accuracy (unanswerable): 1.0
 - False abstention rate (answerable): 0.0
 - Average latency (ms): 1.53
-- Median latency (ms): 1.47
+- Median latency (ms): 1.34
 
 ## Topic Breakdown
 
@@ -49,7 +49,7 @@
 ## Weak Examples
 
 ### Q11: Why is retrieval helpful before answer generation in a RAG system?
-- Notes: single-hop;paraphrase
+- Notes: paraphrase
 - Recall@3: 0.0
 - Reciprocal rank: 0.0
 - Faithfulness: 0.94
@@ -59,7 +59,7 @@
 - Answer: Retrieval provides specific passages before generation so the answer can rely on evidence instead of only on model memory. [1]
 
 ### Q21: How do retrieval and metadata together support trustworthy citations in a RAG workflow?
-- Notes: multi-hop;paraphrase
+- Notes: paraphrase
 - Recall@3: 0.0
 - Reciprocal rank: 0.0
 - Faithfulness: 0.95
@@ -69,7 +69,7 @@
 - Answer: Embeddings support similarity search while metadata keeps the results traceable and useful for filtering inspection and citation. [2]
 
 ### Q23: Why are Recall@3 and faithfulness both needed when evaluating a grounded QA system?
-- Notes: multi-hop;paraphrase
+- Notes: paraphrase
 - Recall@3: 0.5
 - Reciprocal rank: 0.5
 - Faithfulness: 0.95
@@ -79,7 +79,7 @@
 - Answer: Recall@3 checks whether useful evidence was retrieved while faithfulness checks whether the final answer stayed supported by that evidence. [1]
 
 ### Q19: How do tensors and automatic differentiation work together during neural network training in PyTorch?
-- Notes: multi-hop;doc
+- Notes: doc
 - Recall@3: 0.5
 - Reciprocal rank: 0.5
 - Faithfulness: 0.96
@@ -89,7 +89,7 @@
 - Answer: Automatic differentiation tracks operations on tensors and computes gradients automatically during backpropagation. [2] This makes tensors the basic object that flows through the entire neural network pipeline. [2]
 
 ### Q07: Why can transformers train more in parallel than ordinary RNNs?
-- Notes: single-hop;paraphrase
+- Notes: paraphrase
 - Recall@3: 1.0
 - Reciprocal rank: 0.33
 - Faithfulness: 0.78

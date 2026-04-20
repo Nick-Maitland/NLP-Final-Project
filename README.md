@@ -1,6 +1,6 @@
 # Prototype RAG FAQ Answering System
 
-This repository contains a prototype Retrieval-Augmented Generation (RAG) FAQ system built for Durham College Natural Language Processing Project 10. It keeps the class-required root `rag_system.py` entrypoint, ChromaDB + MiniLM retrieval path, GPT-4o-mini generation path, and scored evaluation set, while also adding a stronger portfolio-oriented hybrid retrieval mode, offline-safe execution, and a small optional Streamlit interface.
+This repository contains a prototype Retrieval-Augmented Generation (RAG) FAQ system built for Durham College Natural Language Processing Project 10. It keeps the class-required root `rag_system.py` entrypoint, ChromaDB + MiniLM retrieval path, GPT-4o-mini generation path, and course-scored evaluation deliverables, while also adding a clean canonical benchmark file, a stronger portfolio-oriented hybrid retrieval mode, offline-safe execution, and a small optional Streamlit interface.
 
 ## Why RAG Is Useful
 
@@ -188,6 +188,12 @@ SOURCES
 
 ## Evaluation Results
 
+The evaluation workflow now separates the stable benchmark from generated outputs:
+
+- `evaluation_questions.csv` is the canonical clean benchmark source.
+- `test_questions.csv` is rewritten by evaluation as the course-compliant scored CSV.
+- `results/test_questions_scored.csv` stores the richer scored output with runtime metadata.
+
 The latest scored offline evaluation artifacts are in `results/`. The current aggregate metrics from `results/evaluation_summary.json` are:
 
 | Metric | Value |
@@ -195,18 +201,20 @@ The latest scored offline evaluation artifacts are in `results/`. The current ag
 | Questions | 30 |
 | Answerable questions | 24 |
 | Out-of-scope questions | 6 |
-| Retrieval Recall@3 | 0.92 |
-| MRR@3 | 0.78 |
-| Faithfulness | 0.85 |
+| Retrieval Recall@3 | 0.88 |
+| MRR@3 | 0.69 |
+| Faithfulness | 0.91 |
 | Citation validity rate | 1.00 |
-| Abstention accuracy (unanswerable) | 0.67 |
-| Average latency (ms) | 0.89 |
+| Abstention accuracy (unanswerable) | 1.00 |
+| Average latency (ms) | 1.53 |
 
 These numbers come from the validated offline run:
 
 ```bash
 python rag_system.py evaluate --backend tfidf --llm offline
 ```
+
+That command reads only from `evaluation_questions.csv` and does not mutate the benchmark file.
 
 ### Backend Comparison
 
@@ -243,6 +251,7 @@ This repository is a prototype, not a production-ready RAG system.
 ├── README.md
 ├── PROJECT_REPORT.md
 ├── SUBMISSION_CHECKLIST.md
+├── evaluation_questions.csv
 ├── failure_case_report.md
 ├── knowledge_base/
 │   ├── faqs.csv

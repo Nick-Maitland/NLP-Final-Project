@@ -52,7 +52,13 @@ Offline fallback was a core requirement for this project. When no API key is ava
 
 ## 7. Evaluation Methodology
 
-Evaluation is performed through `test_questions.csv`, which currently contains 30 scored questions:
+Evaluation now uses a clean benchmark file plus generated scored outputs:
+
+- `evaluation_questions.csv` is the canonical 30-question benchmark source.
+- `test_questions.csv` is rewritten during evaluation as the course-compliant scored CSV.
+- `results/test_questions_scored.csv` stores the richer scored output with runtime metadata.
+
+The benchmark currently contains:
 
 - 24 answerable in-scope questions
 - 6 out-of-scope questions
@@ -74,6 +80,8 @@ The latest validated run used:
 python rag_system.py evaluate --backend tfidf --llm offline
 ```
 
+That command reads only from `evaluation_questions.csv`, writes the scored artifacts, and leaves the benchmark file unchanged.
+
 ## 8. Results Table
 
 | Metric | Value |
@@ -81,13 +89,13 @@ python rag_system.py evaluate --backend tfidf --llm offline
 | Question count | 30 |
 | Answerable questions | 24 |
 | Unanswerable questions | 6 |
-| Retrieval Recall@3 | 0.92 |
-| MRR@3 | 0.78 |
-| Faithfulness | 0.85 |
+| Retrieval Recall@3 | 0.88 |
+| MRR@3 | 0.69 |
+| Faithfulness | 0.91 |
 | Citation valid rate | 1.00 |
-| Abstention accuracy (unanswerable) | 0.67 |
-| Average latency (ms) | 0.89 |
-| Median latency (ms) | 0.88 |
+| Abstention accuracy (unanswerable) | 1.00 |
+| Average latency (ms) | 1.53 |
+| Median latency (ms) | 1.34 |
 
 These results are promising for a course prototype, but they are not perfect and should not be presented as production-ready.
 

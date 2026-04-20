@@ -20,6 +20,41 @@ def _write_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _write_evaluation_questions_csv(path: Path) -> None:
+    fieldnames = [
+        "question_id",
+        "question",
+        "expected_source_id",
+        "expected_topic",
+        "answerable",
+        "question_type",
+        "difficulty",
+        "notes",
+    ]
+
+    rows = []
+    for index in range(30):
+        answerable = index < 24
+        rows.append(
+            {
+                "question_id": f"Q{index + 1}",
+                "question": f"Question {index + 1}?",
+                "expected_source_id": "faq_dummy_001" if answerable else "",
+                "expected_topic": "demo" if answerable else "out_of_scope",
+                "answerable": "true" if answerable else "false",
+                "question_type": "single-hop" if answerable else "out_of_scope",
+                "difficulty": "intro" if answerable else "advanced",
+                "notes": "" if answerable else "geography",
+            }
+        )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def _write_test_questions_csv(path: Path, include_faithfulness: bool = True) -> None:
     fieldnames = [
         "question_id",
@@ -27,6 +62,8 @@ def _write_test_questions_csv(path: Path, include_faithfulness: bool = True) -> 
         "expected_source_id",
         "expected_topic",
         "answerable",
+        "question_type",
+        "difficulty",
         "retrieved_source_ids",
         "retrieval_recall_at_3",
         "reciprocal_rank",
@@ -46,6 +83,8 @@ def _write_test_questions_csv(path: Path, include_faithfulness: bool = True) -> 
             "expected_source_id": "faq_dummy_001",
             "expected_topic": "demo",
             "answerable": "true",
+            "question_type": "single-hop",
+            "difficulty": "intro",
             "retrieved_source_ids": "faq_dummy_001",
             "retrieval_recall_at_3": "1.0",
             "reciprocal_rank": "1.0",
@@ -100,6 +139,7 @@ def _create_minimal_submission_repo(root: Path, *, include_faithfulness: bool = 
     _write_text(root / "results" / "dense_validation_summary.json", "{}\n")
     _write_text(root / "results" / "dense_validation_report.md", "# Dense Validation Report\n")
     _write_text(root / "results" / "test_questions_scored.csv", "question_id\nQ1\n")
+    _write_evaluation_questions_csv(root / "evaluation_questions.csv")
     _write_test_questions_csv(root / "test_questions.csv", include_faithfulness=include_faithfulness)
 
 
@@ -149,6 +189,7 @@ def test_submission_package_creates_whitelisted_zip_and_excludes_caches(tmp_path
     assert "rag_system.py" in names
     assert "src/ragfaq/stub.py" in names
     assert "knowledge_base/faqs.csv" in names
+    assert "evaluation_questions.csv" in names
     assert "results/evaluation_summary.json" in names
     assert "results/dense_validation_summary.json" in names
     assert "results/dense_validation_report.md" in names

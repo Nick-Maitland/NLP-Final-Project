@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,16 +9,27 @@ from .config import COLLECTION_NAME, DEFAULT_CANDIDATE_K, DEFAULT_TOP_K, PathCon
 from .generation import ABSTENTION_TEXT, answer_question, strip_citation_markers
 from .reporting import generate_evaluation_report, generate_failure_report, summarize_results
 from .retrievers import retrieve
-from .schemas import BackendMode, EvaluationRow, LlmMode, RetrievedChunk
+from .schemas import BackendMode, BenchmarkQuestion, EvaluationRow, LlmMode, RetrievedChunk
 from .utils import (
+    RagFaqError,
     content_tokens,
     dump_json,
     normalize_text,
-    read_csv_rows,
     sentence_split,
     tokenize,
     write_csv_rows,
 )
+
+BENCHMARK_FIELDNAMES = [
+    "question_id",
+    "question",
+    "expected_source_id",
+    "expected_topic",
+    "answerable",
+    "question_type",
+    "difficulty",
+    "notes",
+]
 
 ROOT_QUESTION_FIELDNAMES = [
     "question_id",
@@ -25,6 +37,8 @@ ROOT_QUESTION_FIELDNAMES = [
     "expected_source_id",
     "expected_topic",
     "answerable",
+    "question_type",
+    "difficulty",
     "retrieved_source_ids",
     "retrieval_recall_at_3",
     "reciprocal_rank",
@@ -43,6 +57,9 @@ SCORED_FIELDNAMES = [
     "citation_warnings",
     "retrieved_chunk_ids",
 ]
+
+QUESTION_TYPE_VALUES = {"single-hop", "multi-hop", "out_of_scope"}
+DIFFICULTY_VALUES = {"intro", "intermediate", "advanced"}
 
 
 def _split_values(value: str) -> list[str]:
@@ -187,16 +204,71 @@ def _retrieved_chunk_summaries(chunks: list[RetrievedChunk]) -> str:
     return " || ".join(summaries)
 
 
+def load_benchmark_questions(path: Path) -> list[BenchmarkQuestion]:
+    if not path.exists():
+        raise RagFaqError(
+            "Benchmark file is missing. Add the root evaluation_questions.csv file before running "
+            "evaluation."
+        )
+
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        fieldnames = list(reader.fieldnames or [])
+        if fieldnames != BENCHMARK_FIELDNAMES:
+            raise RagFaqError(
+                "evaluation_questions.csv must contain only the canonical benchmark columns in "
+                f"this order: {', '.join(BENCHMARK_FIELDNAMES)}."
+            )
+        rows = list(reader)
+
+    questions: list[BenchmarkQuestion] = []
+    for row in rows:
+        question_id = (row.get("question_id") or "").strip()
+        question = (row.get("question") or "").strip()
+        question_type = (row.get("question_type") or "").strip()
+        difficulty = (row.get("difficulty") or "").strip()
+        if not question_id:
+            raise RagFaqError("evaluation_questions.csv contains a row with a blank question_id.")
+        if not question:
+            raise RagFaqError(
+                f"evaluation_questions.csv row {question_id} is missing the question text."
+            )
+        if question_type not in QUESTION_TYPE_VALUES:
+            raise RagFaqError(
+                f"evaluation_questions.csv row {question_id} has unsupported question_type "
+                f"{question_type!r}. Expected one of: {', '.join(sorted(QUESTION_TYPE_VALUES))}."
+            )
+        if difficulty not in DIFFICULTY_VALUES:
+            raise RagFaqError(
+                f"evaluation_questions.csv row {question_id} has unsupported difficulty "
+                f"{difficulty!r}. Expected one of: {', '.join(sorted(DIFFICULTY_VALUES))}."
+            )
+
+        questions.append(
+            BenchmarkQuestion(
+                question_id=question_id,
+                question=question,
+                expected_source_id=(row.get("expected_source_id") or "").strip(),
+                expected_topic=(row.get("expected_topic") or "").strip(),
+                answerable=_parse_bool(row.get("answerable") or ""),
+                question_type=question_type,
+                difficulty=difficulty,
+                notes=(row.get("notes") or "").strip(),
+            )
+        )
+    return questions
+
+
 def _row_from_result(
-    row: dict[str, str],
+    question: BenchmarkQuestion,
     *,
     retrieved_chunks: list[RetrievedChunk],
     answer,
     latency_ms: float,
 ) -> EvaluationRow:
-    expected_source_ids = _split_values(row["expected_source_id"])
-    expected_topics = _split_values(row["expected_topic"])
-    answerable = _parse_bool(row["answerable"])
+    expected_source_ids = _split_values(question.expected_source_id)
+    expected_topics = _split_values(question.expected_topic)
+    answerable = question.answerable
     retrieved_source_ids: list[str] = []
     for chunk in retrieved_chunks:
         if chunk.source_id not in retrieved_source_ids:
@@ -209,7 +281,7 @@ def _row_from_result(
     citation_valid = len(answer.citation_warnings) == 0
     abstention_correct = _abstention_correct(answerable, answer.abstained)
     faithfulness_score = score_faithfulness(
-        row["question"],
+        question.question,
         answer.answer_text,
         retrieved_chunks,
         citation_valid=citation_valid,
@@ -217,11 +289,13 @@ def _row_from_result(
     )
 
     return EvaluationRow(
-        question_id=row["question_id"],
-        question=row["question"],
+        question_id=question.question_id,
+        question=question.question,
         expected_source_id=";".join(expected_source_ids),
-        expected_topic=";".join(expected_topics) if expected_topics else row["expected_topic"],
+        expected_topic=";".join(expected_topics) if expected_topics else question.expected_topic,
         answerable=answerable,
+        question_type=question.question_type,
+        difficulty=question.difficulty,
         retrieved_source_ids=";".join(retrieved_source_ids),
         retrieval_recall_at_3=recall,
         reciprocal_rank=reciprocal_rank,
@@ -229,7 +303,7 @@ def _row_from_result(
         citation_valid=citation_valid,
         abstention_correct=abstention_correct,
         answer=answer.answer_text,
-        notes=row.get("notes") or "",
+        notes=question.notes,
         abstained=answer.abstained,
         latency_ms=round(latency_ms, 2),
         resolved_backend=answer.resolved_backend.value,
@@ -247,6 +321,8 @@ def _to_root_row(result: EvaluationRow) -> dict[str, str]:
         "expected_source_id": result.expected_source_id,
         "expected_topic": result.expected_topic,
         "answerable": _format_bool(result.answerable),
+        "question_type": result.question_type,
+        "difficulty": result.difficulty,
         "retrieved_source_ids": result.retrieved_source_ids,
         "retrieval_recall_at_3": _format_float(result.retrieval_recall_at_3),
         "reciprocal_rank": _format_float(result.reciprocal_rank),
@@ -278,14 +354,14 @@ def compute_evaluation_results(
     collection_name: str = COLLECTION_NAME,
     show_context: bool = False,
     trace_output_path: Path | None = None,
-) -> tuple[list[EvaluationRow], dict[str, object]]:
+) -> tuple[list[EvaluationRow], dict[str, object], list[dict[str, object]]]:
     paths = paths or get_paths()
-    rows = read_csv_rows(paths.test_questions_path)
+    questions = load_benchmark_questions(paths.evaluation_questions_path)
     results: list[EvaluationRow] = []
     traces: list[dict[str, object]] = []
 
-    for row in rows:
-        question = row["question"]
+    for benchmark_question in questions:
+        question = benchmark_question.question
         started = time.perf_counter()
         retrieval = retrieve(
             question,
@@ -303,7 +379,7 @@ def compute_evaluation_results(
         )
         latency_ms = (time.perf_counter() - started) * 1000.0
         if show_context:
-            print(f"[{row['question_id']}] {question}")
+            print(f"[{benchmark_question.question_id}] {question}")
             for chunk in retrieval.chunks:
                 print(f"{chunk.rank}. {chunk.chunk_id}")
                 print(chunk.text)
@@ -313,7 +389,7 @@ def compute_evaluation_results(
 
         results.append(
             _row_from_result(
-                row,
+                benchmark_question,
                 retrieved_chunks=retrieval.chunks,
                 answer=answer,
                 latency_ms=latency_ms,

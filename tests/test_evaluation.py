@@ -19,7 +19,7 @@ def _prepare_eval_root(tmp_path: Path) -> Path:
         "Vector store metadata helps trace retrieved chunks back to their source.",
         encoding="utf-8",
     )
-    with (tmp_path / "test_questions.csv").open("w", encoding="utf-8", newline="") as handle:
+    with (tmp_path / "evaluation_questions.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(
             [
@@ -28,13 +28,8 @@ def _prepare_eval_root(tmp_path: Path) -> Path:
                 "expected_source_id",
                 "expected_topic",
                 "answerable",
-                "retrieved_source_ids",
-                "retrieval_recall_at_3",
-                "reciprocal_rank",
-                "faithfulness_score",
-                "citation_valid",
-                "abstention_correct",
-                "answer",
+                "question_type",
+                "difficulty",
                 "notes",
             ]
         )
@@ -45,14 +40,9 @@ def _prepare_eval_root(tmp_path: Path) -> Path:
                 "sample",
                 "attention",
                 "true",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "single-hop;paraphrase",
+                "single-hop",
+                "intro",
+                "paraphrase",
             ]
         )
         writer.writerow(
@@ -62,14 +52,9 @@ def _prepare_eval_root(tmp_path: Path) -> Path:
                 "",
                 "out_of_scope",
                 "false",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "out_of_scope: geography",
+                "out_of_scope",
+                "advanced",
+                "geography",
             ]
         )
     (tmp_path / "failure_case_report.md").write_text("# Failure Case Report\n", encoding="utf-8")
@@ -93,6 +78,7 @@ def _run_cli(*args: str, env: dict[str, str]) -> subprocess.CompletedProcess[str
 
 def test_evaluate_writes_root_and_results_outputs(tmp_path: Path) -> None:
     temp_root = _prepare_eval_root(tmp_path)
+    original_benchmark = (temp_root / "evaluation_questions.csv").read_text(encoding="utf-8")
     env = os.environ.copy()
     env["RAGFAQ_ROOT"] = str(temp_root)
     env.pop("OPENAI_API_KEY", None)
@@ -107,14 +93,21 @@ def test_evaluate_writes_root_and_results_outputs(tmp_path: Path) -> None:
 
     root_rows = list(csv.DictReader((temp_root / "test_questions.csv").open()))
     assert len(root_rows) == 2
+    assert root_rows[0]["question_type"] == "single-hop"
+    assert root_rows[0]["difficulty"] == "intro"
     assert root_rows[0]["retrieval_recall_at_3"] != ""
     assert root_rows[1]["retrieval_recall_at_3"] == ""
     assert root_rows[1]["abstention_correct"] in {"true", "false"}
 
     scored_rows = list(csv.DictReader((temp_root / "results" / "test_questions_scored.csv").open()))
+    assert scored_rows[0]["question_type"] == "single-hop"
+    assert scored_rows[0]["difficulty"] == "intro"
     assert "latency_ms" in scored_rows[0]
     assert "citation_warnings" in scored_rows[0]
     assert "retrieved_chunk_ids" in scored_rows[0]
+    assert (
+        (temp_root / "evaluation_questions.csv").read_text(encoding="utf-8") == original_benchmark
+    )
 
     summary = json.loads((temp_root / "results" / "evaluation_summary.json").read_text())
     assert summary["question_count"] == 2

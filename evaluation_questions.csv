@@ -1,0 +1,31 @@
+question_id,question,expected_source_id,expected_topic,answerable,question_type,difficulty,notes
+Q01,How does tokenization help an NLP model read text?,faq_tokenization_001,tokenization,true,single-hop,intro,paraphrase
+Q02,Why are embeddings usually more useful than one hot vectors for meaning?,faq_embeddings_002,embeddings,true,single-hop,intro,paraphrase
+Q03,Why do neural networks need nonlinear activations instead of only linear layers?,neural_networks_basics,neural_networks,true,single-hop,intermediate,paraphrase
+Q04,What does the hidden state store as an RNN reads a sequence?,faq_rnns_002,rnns,true,single-hop,intro,
+Q05,Why might a practitioner choose a GRU when they want a simpler recurrent unit?,faq_lstms_grus_003,lstms_grus,true,single-hop,intermediate,paraphrase
+Q06,How does self attention let a token use information from the rest of the sentence?,faq_attention_003,attention,true,single-hop,intro,paraphrase
+Q07,Why can transformers train more in parallel than ordinary RNNs?,faq_transformers_002,transformers,true,single-hop,intro,paraphrase
+Q08,What learning signal comes from masked language modeling in a BERT style encoder?,faq_bert_style_encoders_003,bert_style_encoders,true,single-hop,intermediate,
+Q09,Why do GPT style decoders use causal masking during training?,faq_gpt_style_decoders_002,gpt_style_decoders,true,single-hop,intro,
+Q10,Which NLP problems are a natural fit for sequence to sequence models?,faq_sequence_to_sequence_002,sequence_to_sequence,true,single-hop,intro,paraphrase
+Q11,Why is retrieval helpful before answer generation in a RAG system?,faq_rag_002,rag,true,single-hop,intro,paraphrase
+Q12,What does a faithfulness score try to measure in grounded QA?,faq_evaluation_metrics_003,evaluation_metrics,true,single-hop,intermediate,
+Q13,How is faithfulness different from fluency when judging an answer?,faq_hallucination_faithfulness_002,hallucination_faithfulness,true,single-hop,intro,paraphrase
+Q14,Why does metadata matter after a vector store retrieves a chunk?,faq_chromadb_vector_search_003,chromadb_vector_search,true,single-hop,intermediate,paraphrase
+Q15,Why is automatic differentiation practical when training models in PyTorch?,tensors_and_pytorch_basics,tensors_and_pytorch,true,single-hop,intermediate,doc
+Q16,Why is gradient clipping used when training recurrent networks?,training_rnns_and_bptt,rnns_training,true,single-hop,intermediate,doc
+Q17,Why do transformers need positional information if they already use attention?,transformers_overview,transformers,true,single-hop,intermediate,paraphrase
+Q18,How does self attention help with long range relationships in a sentence?,self_attention_and_transformer_architecture,attention,true,single-hop,intermediate,paraphrase
+Q19,How do tensors and automatic differentiation work together during neural network training in PyTorch?,tensors_and_pytorch_basics;neural_networks_basics,tensors_and_pytorch;neural_networks,true,multi-hop,advanced,doc
+Q20,How do positional encodings and self attention work together inside a transformer?,transformers_overview;self_attention_and_transformer_architecture,transformers;attention,true,multi-hop,advanced,paraphrase
+Q21,How do retrieval and metadata together support trustworthy citations in a RAG workflow?,faq_rag_002;faq_chromadb_vector_search_003,rag;chromadb_vector_search,true,multi-hop,advanced,paraphrase
+Q22,How do masked language modeling and causal masking reflect the difference between encoder and decoder language models?,faq_bert_style_encoders_003;faq_gpt_style_decoders_002,bert_style_encoders;gpt_style_decoders,true,multi-hop,advanced,paraphrase
+Q23,Why are Recall@3 and faithfulness both needed when evaluating a grounded QA system?,faq_evaluation_metrics_001;faq_evaluation_metrics_003,evaluation_metrics;evaluation_metrics,true,multi-hop,advanced,paraphrase
+Q24,Why were LSTMs introduced and how does that connect to vanishing gradients on long sequences?,faq_lstms_grus_001;training_rnns_and_bptt,lstms_grus;rnns_training,true,multi-hop,advanced,paraphrase
+Q25,What is the capital city of France?,,out_of_scope,false,out_of_scope,advanced,geography
+Q26,Who founded PyTorch?,,out_of_scope,false,out_of_scope,advanced,history
+Q27,In what year was BERT first released?,,out_of_scope,false,out_of_scope,advanced,timeline
+Q28,Which team won the 2024 Stanley Cup?,,out_of_scope,false,out_of_scope,advanced,sports
+Q29,What is the boiling point of mercury in Celsius?,,out_of_scope,false,out_of_scope,advanced,chemistry
+Q30,What is the USD to EUR exchange rate today?,,out_of_scope,false,out_of_scope,advanced,finance
