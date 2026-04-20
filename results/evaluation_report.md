@@ -11,8 +11,8 @@
 - Citation valid rate: 1.00
 - Abstention accuracy (unanswerable): 1.0
 - False abstention rate (answerable): 0.04
-- Average latency (ms): 1.08
-- Median latency (ms): 1.09
+- Average latency (ms): 1.46
+- Median latency (ms): 1.23
 
 ## Topic Breakdown
 
@@ -76,7 +76,7 @@
 - Citation valid: true
 - Abstention correct: true
 - Retrieved chunks: [1] tensors_and_pytorch_basics: Shape matters because it tells the model how data is organized for computation. PyTorch uses tensors to store model i... || [2] faq_neural_networks_001: Question: What does a neural network learn during training? Answer: A neural network learns parameter values that red... || [3] tensors_and_pytorch_basics: Tensors and PyTorch Basics Tensors are the core data structure used in modern deep learning. A tensor is a generaliza...
-- Answer: Automatic differentiation tracks operations on tensors and computes gradients automatically during backpropagation. [1] This makes tensors the basic object that flows through the entire neural network pipeline. [1] PyTorch is popular because it supports automatic differentiation. [1]
+- Answer: Automatic differentiation tracks operations on tensors and computes gradients automatically during backpropagation. [1] This makes tensors the basic object that flows through the entire neural network pipeline. [1]
 
 ### Q07: Why can transformers train more in parallel than ordinary RNNs?
 - Notes: single-hop;paraphrase
@@ -86,7 +86,7 @@
 - Citation valid: true
 - Abstention correct: true
 - Retrieved chunks: [1] faq_rnns_006: Question: Why are RNNs less parallelizable than transformers? Answer: RNNs usually process one step after another bec... || [2] transformers_overview: Transformers Overview Transformers were designed to handle sequence transduction without relying on recurrence or con... || [3] faq_transformers_002: Question: Why are transformers more parallelizable than RNNs? Answer: Tokens within a layer can be processed together...
-- Answer: Transformers are more parallelizable than RNNs because they process tokens in parallel within a layer instead of stepping strictly one token at a time. [2] RNNs usually process one step after another because each hidden state depends on the previous one. [1] Transformers were designed to handle sequence transduction without relying on recurrence or convolution. [2]
+- Answer: Transformers are more parallelizable than RNNs because they process tokens in parallel within a layer instead of stepping strictly one token at a time. [2]
 
 ### Q03: Why do neural networks need nonlinear activations instead of only linear layers?
 - Notes: single-hop;paraphrase
@@ -96,4 +96,4 @@
 - Citation valid: true
 - Abstention correct: true
 - Retrieved chunks: [1] faq_neural_networks_002: Question: Why are non linear activation functions important? Answer: Non linear activations let stacked layers repres... || [2] neural_networks_basics: Neural Networks Basics A perceptron is a simple computational unit that takes weighted inputs, adds a bias term, and... || [3] faq_neural_networks_006: Question: Why can deep networks learn hierarchical features? Answer: Different layers can specialize in different lev...
-- Answer: Non linear activations let stacked layers represent complex functions that a purely linear model cannot express. [1] Neural networks use activation functions because stacked linear operations would otherwise collapse into a single linear transformation. [2] It is the basic building block that inspired modern neural networks. [2]
+- Answer: Neural networks use activation functions because stacked linear operations would otherwise collapse into a single linear transformation. [2] Non linear activations let stacked layers represent complex functions that a purely linear model cannot express. [1]
