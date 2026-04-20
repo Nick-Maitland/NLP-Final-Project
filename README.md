@@ -158,7 +158,7 @@ python rag_system.py inspect-kb
 
 ### Optional Streamlit Interface
 
-The Streamlit UI is documented on purpose as a second local usage story, but it remains optional and is not required for tests, smoke runs, or submission.
+The Streamlit UI is documented on purpose as a second local usage story, but it remains optional and is not required for tests, smoke runs, or submission. The app defaults to the offline-safe `tfidf` + `offline` path and surfaces fallback/runtime warnings so it can work as a resume demo without changing the course-facing CLI workflow.
 
 ```bash
 pip install streamlit
@@ -171,6 +171,13 @@ The UI lets you:
 - choose `auto`, `tfidf`, `chroma`, or `hybrid`
 - choose `auto`, `offline`, or `openai`
 - inspect answer text, sources, retrieved context, and retrieval trace
+- see the backend actually used, LLM mode actually used, latency, and confidence / abstention diagnostics
+- see clear warnings when dense or OpenAI dependencies are unavailable
+
+Optional demo notes:
+
+- Walkthrough: [docs/demo_walkthrough.md](docs/demo_walkthrough.md)
+- Screenshot instructions: [screenshots/README.md](screenshots/README.md)
 
 ## Example Output
 
