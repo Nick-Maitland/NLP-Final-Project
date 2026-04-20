@@ -1,27 +1,51 @@
 # Project 10 Submission Checklist
 
-This checklist maps each required Project 10 deliverable to the file or command that should satisfy it in the final repository.
+This checklist records the current repository evidence for the final Project 10 submission. It is written as a proof-of-presence document, not as a future plan. The project is a prototype, and the main validated path on the M1 laptop is the offline-safe TF-IDF + extractive generation configuration.
 
-| # | Project 10 requirement | File or command that satisfies it | Planned evidence to verify |
-| --- | --- | --- | --- |
-| 1 | `rag_system.py` | `rag_system.py` | Root CLI entrypoint exists at the repository root |
-| 2 | `knowledge_base/` folder | `knowledge_base/` | Root knowledge base folder exists and contains source documents |
-| 3 | `test_questions.csv` with scores | `test_questions.csv` | CSV contains 30 questions plus computed score columns |
-| 4 | Short report on failure cases | `failure_case_report.md` | Root report summarizes real failure modes and examples |
-| 5 | RAG system embeds documents with `sentence-transformers/all-MiniLM-L6-v2` | `python rag_system.py --build-index` | Build/index logs or code path show MiniLM embedding model usage |
-| 6 | ChromaDB storage using `collection.add(...)` | `python rag_system.py --build-index` | Stored collection is created through the required Chroma API |
-| 7 | Query-time top-3 retrieval using `collection.query(...)` | `python rag_system.py --ask "QUESTION"` | Retrieval code queries Chroma with top 3 results |
-| 8 | Prompt says to answer using ONLY the retrieved context | `rag_system.py` | Prompt text explicitly constrains the answer to retrieved context |
-| 9 | GPT-4o-mini generation when `OPENAI_API_KEY` is available | `python rag_system.py --ask "QUESTION"` | With `OPENAI_API_KEY` set, generation path uses GPT-4o-mini |
-| 10 | Local offline fallback mode when no API key or model download is available | `python rag_system.py --smoke-test --offline` | Offline smoke test runs without requiring `OPENAI_API_KEY` |
-| 11 | 30 test questions | `test_questions.csv` | CSV contains exactly 30 evaluation questions |
-| 12 | Retrieval Recall@3 and answer faithfulness evaluation | `python rag_system.py --evaluate` | Evaluation run computes metrics and records them honestly |
+## Required Submission Evidence
 
-## Final Verification Pass
+| Requirement | Current evidence |
+| --- | --- |
+| Root `rag_system.py` entrypoint | Present at `rag_system.py` and used by the documented commands `python rag_system.py build ...`, `ask ...`, `evaluate ...`, `inspect-kb`, and `demo ...` |
+| Root `knowledge_base/` folder | Present at `knowledge_base/` with `faqs.csv` plus supporting notes under `knowledge_base/docs/` |
+| Scored `test_questions.csv` | Present at `test_questions.csv` with 30 scored rows and the columns `retrieval_recall_at_3`, `reciprocal_rank`, `faithfulness_score`, `citation_valid`, `abstention_correct`, and `answer` |
+| Failure-case report | Present at `failure_case_report.md` with concrete weak examples from the latest evaluation run |
+| ChromaDB implementation | Dense vector-store code is present under `src/ragfaq/vector_store.py` and uses `chromadb.PersistentClient`, `collection.add(...)`, and `collection.query(...)` |
+| `sentence-transformers/all-MiniLM-L6-v2` embedding path | Dense embedding configuration is present in `src/ragfaq/config.py` and implemented in `src/ragfaq/embeddings.py` through `SentenceTransformerEmbeddingProvider` |
+| GPT-4o-mini generation path | OpenAI-backed generation is present in `src/ragfaq/generation.py` through `OpenAIGenerator`, which targets `gpt-4o-mini` when `OPENAI_API_KEY` is available |
+| Offline fallback path | Offline-safe retrieval and answer generation are present through `--backend tfidf`, `--llm offline`, and `--backend auto --llm auto` fallback behavior |
+| 30-question evaluation set | `test_questions.csv` contains 30 scored questions, which is the enforced course-sized evaluation set used by this prototype |
+| Retrieval Recall@3 evaluation | The current aggregate Recall@3 result is recorded in `results/evaluation_summary.json` as `0.92` |
+| Faithfulness evaluation | The current aggregate faithfulness result is recorded in `results/evaluation_summary.json` as `0.85` |
 
-- Confirm all root deliverables exist: `rag_system.py`, `knowledge_base/`, `test_questions.csv`, `failure_case_report.md`
-- Confirm the command surface matches the project plan exactly
-- Confirm `test_questions.csv` includes both retrieval and answer-quality scoring fields
-- Confirm offline smoke tests do not depend on an OpenAI API key
-- Confirm no evaluation numbers are fabricated or hard-coded
+## Course-Compliant Commands
 
+These commands match the current CLI surface and the repository documentation:
+
+```bash
+python rag_system.py inspect-kb
+python rag_system.py build --backend tfidf
+python rag_system.py ask --backend tfidf --llm offline --question "What is self-attention?"
+python rag_system.py evaluate --backend tfidf --llm offline
+python rag_system.py demo --backend tfidf --llm offline
+```
+
+When the optional dense stack and cached MiniLM model are available locally, the course-compliant dense path is:
+
+```bash
+python rag_system.py build --backend chroma --rebuild
+python rag_system.py ask --backend chroma --llm openai --question "What is self-attention?"
+```
+
+## Verified Artifacts
+
+- `results/evaluation_summary.json`
+- `results/evaluation_report.md`
+- `results/test_questions_scored.csv`
+- `results/demo_run.md`
+
+## Notes On Validation Scope
+
+- The dense ChromaDB path and GPT-4o-mini path are implemented in code and documented in the repository.
+- The main repeated local validation path on the M1 laptop is the offline-safe configuration because it does not require `OPENAI_API_KEY`, `chromadb`, `sentence-transformers`, or model downloads.
+- The repository therefore satisfies the class structure while still providing a stronger prototype path when the optional dense/OpenAI stack is available.

@@ -1,139 +1,202 @@
-# RAG FAQ Project
+# Prototype RAG FAQ Answering System
 
-This repository implements Durham College NLP Project 10 as a RAG-based FAQ answering system.
+This repository contains a prototype Retrieval-Augmented Generation (RAG) FAQ system built for Durham College Natural Language Processing Project 10. It keeps the class-required root `rag_system.py` entrypoint, ChromaDB + MiniLM retrieval path, GPT-4o-mini generation path, and scored evaluation set, while also adding a stronger portfolio-oriented hybrid retrieval mode, offline-safe execution, and a small optional Streamlit interface.
 
-## Layout
+## Why RAG Is Useful
 
-- `rag_system.py`: root CLI required by the course
-- `src/ragfaq/`: internal package with ingestion, retrieval, generation, and evaluation code
-- `knowledge_base/`: repo-local curated source documents
-- `test_questions.csv`: 30 evaluation questions plus scores populated by the evaluation command
-- `failure_case_report.md`: failure analysis generated from real evaluation runs
+RAG is useful for grounded question answering because it separates retrieval from generation. Instead of answering from model memory alone, the system first retrieves relevant chunks from a local knowledge base and then answers from those chunks. That makes source attribution possible, reduces unsupported claims, and creates a more inspectable workflow for an academic FAQ setting.
 
-## Lite Setup (offline-safe)
+## Architecture
+
+```mermaid
+flowchart TD
+    KB[knowledge_base/] --> INGEST[Ingestion and normalization]
+    INGEST --> CHUNK[Chunking with stable chunk IDs]
+    CHUNK --> TFIDF[TF-IDF lexical index]
+    CHUNK --> EMBED[all-MiniLM-L6-v2 embeddings<br/>when available]
+    EMBED --> CHROMA[ChromaDB collection]
+    TFIDF --> RETRIEVE[Retrieval layer]
+    CHROMA --> RETRIEVE
+    RETRIEVE --> HYBRID[Optional hybrid fusion + MMR]
+    RETRIEVE --> GEN[Answer generation]
+    HYBRID --> GEN
+    GEN --> CLI[CLI / optional Streamlit UI]
+    RETRIEVE --> REPORTS[Evaluation, traces, reports]
+    GEN --> REPORTS
+```
+
+## Course-Compliant Mode
+
+The course-compliant path is centered on the required root CLI and the explicit Chroma workflow:
+
+- `rag_system.py` remains the root entrypoint.
+- `knowledge_base/` stays at the repository root.
+- the dense path uses `sentence-transformers/all-MiniLM-L6-v2`
+- the vector store path uses ChromaDB with `collection.add(...)` and `collection.query(...)`
+- the OpenAI path uses `gpt-4o-mini` when `OPENAI_API_KEY` is available
+
+When the full stack is available locally, the intended course-compliant dense flow is:
+
+```bash
+python rag_system.py build --backend chroma --rebuild
+python rag_system.py ask --backend chroma --llm openai --question "What is self-attention?"
+```
+
+## Resume-Impressive Hybrid Mode
+
+The portfolio-oriented path adds a stronger retrieval mode without removing the class-required flow:
+
+- `--backend hybrid` combines lexical and dense retrieval
+- reciprocal rank fusion merges candidate rankings
+- lightweight MMR reduces near-duplicate final chunks
+- retrieval traces can be written to JSON for inspection
+- the same CLI can also drive the optional Streamlit demo
+
+Example hybrid command:
+
+```bash
+python rag_system.py ask --backend hybrid --llm offline --question "How does attention help transformers?"
+```
+
+## Offline Fallback Mode
+
+The offline fallback path is the safest local mode for an M1 MacBook Pro:
+
+- `--backend tfidf` uses pure-Python lexical retrieval
+- `--llm offline` uses extractive grounded answer generation with citations
+- `--backend auto --llm auto` falls back to the local path when dense dependencies, cached models, or API keys are unavailable
+
+Offline-safe commands:
+
+```bash
+python rag_system.py inspect-kb
+python rag_system.py build --backend tfidf
+python rag_system.py ask --backend tfidf --llm offline --question "What is self-attention?"
+python rag_system.py evaluate --backend tfidf --llm offline
+python rag_system.py demo --backend tfidf --llm offline
+```
+
+## M1 Mac Setup
+
+The project is designed to run in a lightweight mode first, then opt into the full dense/OpenAI stack only when needed.
+
+### Lite Setup
 
 ```bash
 make setup-lite
-```
-
-Lite setup is the recommended first run on an M1 MacBook Pro. It installs only the
-dependencies needed for TF-IDF retrieval, offline extractive answers, evaluation, and tests.
-It does not require OpenAI, ChromaDB, sentence-transformers, or model downloads.
-
-## Full Setup (dense + OpenAI capable)
-
-```bash
-make setup-full
-```
-
-Full setup installs the complete Project 10 stack, including ChromaDB and
-`sentence-transformers/all-MiniLM-L6-v2` support. The first dense run may require a one-time
-MiniLM model download if the model is not already cached.
-
-## M1 Preflight
-
-```bash
 python scripts/preflight_m1.py
 ```
 
-This checks whether the current environment is best suited for:
+Lite mode is the recommended first run on an M1 Mac because it:
 
-- `SAFE MODE: lite`
-- `SAFE MODE: full`
-- `SAFE MODE: full-with-download`
-- `SAFE MODE: blocked`
+- does not require `OPENAI_API_KEY`
+- does not require ChromaDB
+- does not require `sentence-transformers`
+- does not require model downloads
 
-## Make Targets
+### Full Setup
 
 ```bash
-make setup-lite
 make setup-full
-make smoke
-make evaluate-offline
-make test
-make clean
-make package
+python scripts/preflight_m1.py
 ```
 
-`make smoke` and `make test` are designed to work in lite mode without network access, OpenAI,
-ChromaDB, or sentence-transformers.
+Full setup installs the complete project stack. The dense path may still require a locally cached MiniLM model before `--backend chroma` or `--backend hybrid` can run successfully.
 
-## Demo
+## Commands To Run
 
-The local demo mode runs a small curated showcase and writes a Markdown artifact at
-`results/demo_run.md`.
+### CLI Prototype
 
 ```bash
+python rag_system.py build --backend tfidf
+python rag_system.py ask --backend tfidf --llm offline --question "What is self-attention?"
+python rag_system.py ask --backend auto --llm auto --question "What is self-attention?"
+python rag_system.py evaluate --backend tfidf --llm offline
 python rag_system.py demo --backend tfidf --llm offline
-python rag_system.py demo --backend auto --llm auto
+python rag_system.py inspect-kb
 ```
 
-If you want to demo a single ad hoc question instead of the five built-in showcase questions:
+### Optional Streamlit Interface
 
-```bash
-python rag_system.py demo --backend tfidf --llm offline --question "What is self-attention?"
-```
-
-The CLI demo works offline. It prints the question, resolved backend, latency, fallback status,
-answer, and citations for each demo query, and refreshes `results/demo_run.md` after the run.
-
-### Optional Streamlit UI
-
-`app.py` is an optional local UI and is not required for tests, smoke runs, or submission.
-It is intentionally not included in the default dependency files.
+The Streamlit UI is documented on purpose as a second local usage story, but it remains optional and is not required for tests, smoke runs, or submission.
 
 ```bash
 pip install streamlit
 streamlit run app.py
 ```
 
-The UI defaults to offline-safe settings and can show the answer, sources, retrieved context,
-and retrieval trace.
+The UI lets you:
 
-## Primary Commands
+- enter a question
+- choose `auto`, `tfidf`, `chroma`, or `hybrid`
+- choose `auto`, `offline`, or `openai`
+- inspect answer text, sources, retrieved context, and retrieval trace
 
-```bash
-python rag_system.py build
-python rag_system.py ask --question "What is self-attention?"
-python rag_system.py evaluate
-python rag_system.py inspect-kb
-python rag_system.py demo
+## Example Output
+
+Example CLI output from the offline-safe path:
+
+```text
+ANSWER
+Self attention lets tokens in the same sequence compare with one another so each token representation can incorporate broader context. [1]
+
+SOURCES
+[1] faq_attention_003 | attention | knowledge_base/faqs.csv | 0
+[2] faq_attention_006 | attention | knowledge_base/faqs.csv | 0
+[3] self_attention_and_transformer_architecture | attention | knowledge_base/docs/self_attention_and_transformer_architecture.md | 0
 ```
 
-## Key Modes
+## Evaluation Results
 
-- `--backend chroma`: ChromaDB plus `sentence-transformers/all-MiniLM-L6-v2`
-- `--backend tfidf`: pure-Python lexical retrieval that works offline
-- `--backend hybrid`: combines dense and lexical retrieval when both are ready
-- `--backend auto`: prefers hybrid, then chroma, then tfidf
-- `--llm openai`: GPT-4o-mini when `OPENAI_API_KEY` is available
-- `--llm offline`: extractive grounded answer generation with no network calls
-- `--llm auto`: prefers OpenAI and falls back to offline mode
+The latest scored offline evaluation artifacts are in `results/`. The current aggregate metrics from `results/evaluation_summary.json` are:
 
-## Compatibility Aliases
+| Metric | Value |
+| --- | ---: |
+| Questions | 30 |
+| Answerable questions | 24 |
+| Out-of-scope questions | 6 |
+| Retrieval Recall@3 | 0.92 |
+| MRR@3 | 0.78 |
+| Faithfulness | 0.85 |
+| Citation validity rate | 1.00 |
+| Abstention accuracy (unanswerable) | 0.67 |
+| Average latency (ms) | 0.89 |
 
-The earlier planning docs remain valid because these legacy forms still work:
+These numbers come from the validated offline run:
 
 ```bash
-python rag_system.py --build-index
-python rag_system.py --ask "What is self-attention?" --offline
-python rag_system.py --evaluate
-python rag_system.py --smoke-test --offline
+python rag_system.py evaluate --backend tfidf --llm offline
 ```
 
-## Offline Smoke Path
+## Limitations
 
-These commands are expected to work without an OpenAI API key, without ChromaDB, and without a
-sentence-transformers model download:
+This repository is a prototype, not a production-ready RAG system.
 
-```bash
-python rag_system.py inspect-kb
-python rag_system.py build --backend tfidf
-python rag_system.py ask --backend tfidf --llm offline --question "What is self-attention?"
-```
+- offline generation is extractive and can still over-answer when retrieval is loosely related
+- hybrid and Chroma modes depend on optional dense dependencies and local MiniLM availability
+- current abstention behavior is imperfect on some out-of-scope questions
+- multi-hop retrieval remains the weakest part of the evaluation set
+- the knowledge base is curated for course topics, not open-domain coverage
 
-The local smoke script runs the same offline-safe path:
+## File Structure
 
-```bash
-scripts/local_smoke_test.sh
+```text
+.
+├── rag_system.py
+├── app.py
+├── README.md
+├── PROJECT_REPORT.md
+├── SUBMISSION_CHECKLIST.md
+├── failure_case_report.md
+├── knowledge_base/
+│   ├── faqs.csv
+│   └── docs/
+├── results/
+│   ├── demo_run.md
+│   ├── evaluation_report.md
+│   ├── evaluation_summary.json
+│   └── test_questions_scored.csv
+├── src/ragfaq/
+├── test_questions.csv
+└── tests/
 ```
