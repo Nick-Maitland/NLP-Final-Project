@@ -2,6 +2,8 @@
 
 This repository contains a prototype Retrieval-Augmented Generation (RAG) FAQ system built for Durham College Natural Language Processing Project 10. It keeps the class-required root `rag_system.py` entrypoint, ChromaDB + MiniLM retrieval path, GPT-4o-mini generation path, and course-scored evaluation deliverables, while also adding a clean canonical benchmark file, a stronger portfolio-oriented hybrid retrieval mode, offline-safe execution, and a small optional Streamlit interface.
 
+See [SYSTEM_CARD.md](SYSTEM_CARD.md) for a concise overview of intended use, limits, evaluation scope, and failure modes.
+
 ## Why RAG Is Useful
 
 RAG is useful for grounded question answering because it separates retrieval from generation. Instead of answering from model memory alone, the system first retrieves relevant chunks from a local knowledge base and then answers from those chunks. That makes source attribution possible, reduces unsupported claims, and creates a more inspectable workflow for an academic FAQ setting.

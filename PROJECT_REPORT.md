@@ -4,6 +4,8 @@
 
 The goal of this project was to build a question-answering prototype for course-relevant NLP topics using Retrieval-Augmented Generation. The system needed to answer from a local knowledge base, support a course-compliant dense retrieval path, and still run locally in an offline-safe fallback mode on an M1 MacBook Pro.
 
+For a concise intended-use, limitation, and failure-mode summary, see `SYSTEM_CARD.md`.
+
 ## 2. Dataset / Knowledge Base
 
 The project uses a small curated knowledge base stored at the repository root in `knowledge_base/`. The main source is an FAQ-style CSV with 80 entries, supported by deeper Markdown notes for topics such as tensors, RNNs, transformers, and self-attention. At runtime, the corpus resolves to 86 source documents and 93 retrievable chunks. This size is intentionally small enough for local experimentation and honest inspection.
