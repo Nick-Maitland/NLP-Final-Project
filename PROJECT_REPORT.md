@@ -8,11 +8,23 @@ For a concise intended-use, limitation, and failure-mode summary, see `SYSTEM_CA
 
 ## 2. Dataset / Knowledge Base
 
-The project uses a small curated knowledge base stored at the repository root in `knowledge_base/`. The main source is an FAQ-style CSV with 80 entries, supported by deeper Markdown notes for topics such as tensors, RNNs, transformers, and self-attention. At runtime, the corpus resolves to 86 source documents and 93 retrievable chunks. This size is intentionally small enough for local experimentation and honest inspection.
+The project uses a small curated knowledge base stored at the repository root in `knowledge_base/`. The main source is an FAQ-style CSV with 102 entries, supported by deeper Markdown notes for topics such as tensors, RNNs, transformers, and self-attention. In the current checked-in build, the corpus resolves to 108 source documents and 115 retrievable chunks. This size is intentionally small enough for local experimentation and honest inspection.
 
 ## 3. RAG Architecture
 
 The architecture is built around a root CLI entrypoint, `rag_system.py`, which calls modular code under `src/ragfaq/`. Documents are ingested, normalized, chunked with stable IDs, and then indexed through either a lexical TF-IDF path, a dense ChromaDB path, or a hybrid path that combines both. Retrieval produces the top evidence chunks, and the generation layer answers with citations tied to those chunks.
+
+The course-facing command surface is preserved directly on the root script through compatibility aliases:
+
+```bash
+python rag_system.py --build-index
+python rag_system.py --ask "QUESTION"
+python rag_system.py --ask "QUESTION" --offline
+python rag_system.py --evaluate
+python rag_system.py --smoke-test --offline
+```
+
+Equivalent subcommands remain available, but the aliases above are the primary submission-facing interface.
 
 ## 4. Embedding and Vector Store Design
 
@@ -76,10 +88,10 @@ The evaluation pipeline records:
 - abstention correctness
 - latency
 
-The latest validated run used:
+The latest validated offline run used:
 
 ```bash
-python rag_system.py evaluate --backend tfidf --llm offline
+python rag_system.py --evaluate --backend tfidf --offline
 ```
 
 That command reads only from `evaluation_questions.csv`, writes the scored artifacts, and leaves the benchmark file unchanged.
@@ -96,8 +108,8 @@ That command reads only from `evaluation_questions.csv`, writes the scored artif
 | Faithfulness | 0.91 |
 | Citation valid rate | 1.00 |
 | Abstention accuracy (unanswerable) | 1.00 |
-| Average latency (ms) | 1.53 |
-| Median latency (ms) | 1.34 |
+| Average latency (ms) | 1.45 |
+| Median latency (ms) | 1.29 |
 
 These results are promising for a course prototype, but they are not perfect and should not be presented as production-ready.
 
@@ -119,12 +131,15 @@ Latest comparison run: `2026-04-20T14:57:16.089471+00:00`.
 
 ## 10. Failure Cases
 
-The weakest cases come from retrieval coverage, multi-hop reasoning, and abstention behavior:
+The weakest cases come from retrieval coverage, multi-hop reasoning, and partial grounding on otherwise relevant answers:
 
 - `Q11` failed primarily as a retrieval problem because the expected RAG-specific source was not retrieved in the top 3.
 - `Q21` exposed a multi-hop weakness: metadata evidence was retrieved, but the combined answer pulled in unrelated supporting text.
-- `Q26` and `Q27` are out-of-scope questions where the offline generator should have abstained but instead reused partially relevant in-domain content.
-- `Q19` shows a knowledge-base coverage issue for a cross-topic PyTorch + neural network training explanation.
+- `Q23` shows a knowledge-base coverage issue even though the final answer stayed close to the retrieved evidence.
+- `Q19` shows a cross-topic PyTorch + neural network training explanation where the retrieved context was useful but not complete.
+- `Q07` reflects a generation-side grounding weakness: the answer was directionally correct, but the strongest supporting chunk was not the one cited in the final response.
+
+The current offline benchmark abstained correctly on all 6 unanswerable questions, so the main remaining gap is not abstention rate but stronger evidence selection on answerable questions.
 
 These examples are documented in more detail in `failure_case_report.md`.
 

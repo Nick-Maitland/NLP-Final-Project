@@ -37,11 +37,23 @@ The course-compliant path is centered on the required root CLI and the explicit 
 - the vector store path uses ChromaDB with `collection.add(...)` and `collection.query(...)`
 - the OpenAI path uses `gpt-4o-mini` when `OPENAI_API_KEY` is available
 
-When the full stack is available locally, the intended course-compliant dense flow is:
+The primary submission-facing command surface kept at the repository root is:
 
 ```bash
-python rag_system.py build --backend chroma --rebuild
-python rag_system.py ask --backend chroma --llm openai --question "What is self-attention?"
+python rag_system.py --build-index
+python rag_system.py --ask "What is self-attention?"
+python rag_system.py --ask "What is self-attention?" --offline
+python rag_system.py --evaluate
+python rag_system.py --smoke-test --offline
+```
+
+Equivalent subcommands such as `build`, `ask`, `evaluate`, and `demo` remain supported for explicit or advanced usage.
+
+When the full stack is available locally, the intended dense course flow is:
+
+```bash
+python rag_system.py --build-index --backend chroma --rebuild
+python rag_system.py --ask "What is self-attention?" --backend chroma --llm openai
 ```
 
 ## Resume-Impressive Hybrid Mode
@@ -57,7 +69,7 @@ The portfolio-oriented path adds a stronger retrieval mode without removing the 
 Example hybrid command:
 
 ```bash
-python rag_system.py ask --backend hybrid --llm offline --question "How does attention help transformers?"
+python rag_system.py --ask "How does attention help transformers?" --backend hybrid --offline
 ```
 
 ## Offline Fallback Mode
@@ -72,10 +84,10 @@ Offline-safe commands:
 
 ```bash
 python rag_system.py inspect-kb
-python rag_system.py build --backend tfidf
-python rag_system.py ask --backend tfidf --llm offline --question "What is self-attention?"
-python rag_system.py evaluate --backend tfidf --llm offline
-python rag_system.py demo --backend tfidf --llm offline
+python rag_system.py --build-index --backend tfidf
+python rag_system.py --ask "What is self-attention?" --backend tfidf --offline
+python rag_system.py --evaluate --backend tfidf --offline
+python rag_system.py --smoke-test --offline
 ```
 
 ## M1 Mac Setup
@@ -144,18 +156,28 @@ This live check exercises the GPT-4o-mini generation path through the local TF-I
 
 ## Commands To Run
 
-### CLI Prototype
+### Submission-Facing CLI
 
 ```bash
-python rag_system.py build --backend tfidf
-python rag_system.py ask --backend tfidf --llm offline --question "What is self-attention?"
-python rag_system.py ask --backend auto --llm auto --question "What is self-attention?"
-python rag_system.py evaluate --backend tfidf --llm offline
+python rag_system.py --build-index
+python rag_system.py --ask "What is self-attention?"
+python rag_system.py --ask "What is self-attention?" --offline
+python rag_system.py --evaluate
+python rag_system.py --smoke-test --offline
+```
+
+### Equivalent Explicit Modes
+
+```bash
+python rag_system.py --build-index --backend tfidf
+python rag_system.py --ask "What is self-attention?" --backend tfidf --offline
+python rag_system.py --ask "What is self-attention?" --backend auto --llm auto
+python rag_system.py --evaluate --backend tfidf --offline
+python rag_system.py inspect-kb
 python scripts/run_backend_comparison.py --offline-only
 python scripts/run_backend_comparison.py --include-openai
 python scripts/validate_openai_path.py
 python rag_system.py demo --backend tfidf --llm offline
-python rag_system.py inspect-kb
 ```
 
 ### Optional Streamlit Interface
@@ -215,12 +237,12 @@ The latest scored offline evaluation artifacts are in `results/`. The current ag
 | Faithfulness | 0.91 |
 | Citation validity rate | 1.00 |
 | Abstention accuracy (unanswerable) | 1.00 |
-| Average latency (ms) | 1.53 |
+| Average latency (ms) | 1.45 |
 
 These numbers come from the validated offline run:
 
 ```bash
-python rag_system.py evaluate --backend tfidf --llm offline
+python rag_system.py --evaluate --backend tfidf --offline
 ```
 
 That command reads only from `evaluation_questions.csv` and does not mutate the benchmark file.
@@ -247,7 +269,7 @@ This repository is a prototype, not a production-ready RAG system.
 
 - offline generation is extractive and can still over-answer when retrieval is loosely related
 - hybrid and Chroma modes depend on optional dense dependencies and local MiniLM availability
-- current abstention behavior is imperfect on some out-of-scope questions
+- abstention quality still depends on retrieval quality and may degrade on loosely related out-of-scope prompts beyond the benchmark
 - multi-hop retrieval remains the weakest part of the evaluation set
 - the knowledge base is curated for course topics, not open-domain coverage
 
@@ -259,12 +281,15 @@ This repository is a prototype, not a production-ready RAG system.
 ├── app.py
 ├── README.md
 ├── PROJECT_REPORT.md
+├── SYSTEM_CARD.md
 ├── SUBMISSION_CHECKLIST.md
 ├── evaluation_questions.csv
 ├── failure_case_report.md
+├── docs/demo_walkthrough.md
 ├── knowledge_base/
 │   ├── faqs.csv
 │   └── docs/
+├── screenshots/README.md
 ├── results/
 │   ├── demo_run.md
 │   ├── evaluation_report.md

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -20,8 +21,13 @@ def _write_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _write_evaluation_questions_csv(path: Path) -> None:
-    fieldnames = [
+def _write_evaluation_questions_csv(
+    path: Path,
+    *,
+    count: int = 30,
+    fieldnames: list[str] | None = None,
+) -> None:
+    canonical_fieldnames = [
         "question_id",
         "question",
         "expected_source_id",
@@ -31,22 +37,22 @@ def _write_evaluation_questions_csv(path: Path) -> None:
         "difficulty",
         "notes",
     ]
+    fieldnames = fieldnames or canonical_fieldnames
 
     rows = []
-    for index in range(30):
+    for index in range(count):
         answerable = index < 24
-        rows.append(
-            {
-                "question_id": f"Q{index + 1}",
-                "question": f"Question {index + 1}?",
-                "expected_source_id": "faq_dummy_001" if answerable else "",
-                "expected_topic": "demo" if answerable else "out_of_scope",
-                "answerable": "true" if answerable else "false",
-                "question_type": "single-hop" if answerable else "out_of_scope",
-                "difficulty": "intro" if answerable else "advanced",
-                "notes": "" if answerable else "geography",
-            }
-        )
+        row = {
+            "question_id": f"Q{index + 1}",
+            "question": f"Question {index + 1}?",
+            "expected_source_id": "faq_dummy_001" if answerable else "",
+            "expected_topic": "demo" if answerable else "out_of_scope",
+            "answerable": "true" if answerable else "false",
+            "question_type": "single-hop" if answerable else "out_of_scope",
+            "difficulty": "intro" if answerable else "advanced",
+            "notes": "" if answerable else "geography",
+        }
+        rows.append({column: row[column] for column in fieldnames})
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -55,7 +61,12 @@ def _write_evaluation_questions_csv(path: Path) -> None:
         writer.writerows(rows)
 
 
-def _write_test_questions_csv(path: Path, include_faithfulness: bool = True) -> None:
+def _write_test_questions_csv(
+    path: Path,
+    include_faithfulness: bool = True,
+    *,
+    count: int = 30,
+) -> None:
     fieldnames = [
         "question_id",
         "question",
@@ -76,7 +87,7 @@ def _write_test_questions_csv(path: Path, include_faithfulness: bool = True) -> 
         fieldnames.insert(fieldnames.index("citation_valid"), "faithfulness_score")
 
     rows = []
-    for index in range(30):
+    for index in range(count):
         row = {
             "question_id": f"Q{index + 1}",
             "question": f"Question {index + 1}?",
@@ -110,12 +121,18 @@ def _create_minimal_submission_repo(root: Path, *, include_faithfulness: bool = 
         '"""stub"""\n'
         'HELP = "--llm offline"\n',
     )
+    _write_text(root / "app.py", "def main():\n    return 'demo'\n")
     _write_text(root / "failure_case_report.md", "# Failure Case Report\n")
     _write_text(root / "README.md", "# README\n")
     _write_text(root / "PROJECT_REPORT.md", "# Project Report\n")
+    _write_text(root / "SYSTEM_CARD.md", "# System Card\n")
+    _write_text(root / "SUBMISSION_CHECKLIST.md", "# Submission Checklist\n")
     _write_text(root / "requirements.txt", "pytest\n")
     _write_text(root / "requirements-lite.txt", "pytest\n")
     _write_text(root / "Makefile", "package:\n\t@echo package\n")
+    _write_text(root / "docs" / "demo_walkthrough.md", "# Demo Walkthrough\n")
+    _write_text(root / "screenshots" / "README.md", "# Screenshots\n")
+    _write_text(root / ".github" / "workflows" / "offline-ci.yml", "name: offline\n")
     _write_text(root / "knowledge_base" / "faqs.csv", "source_id,question,answer,topic,difficulty\nfaq_dummy_001,Q,A,demo,intro\n")
     _write_text(
         root / "src" / "ragfaq" / "stub.py",
@@ -165,6 +182,81 @@ def test_submission_audit_fails_when_faithfulness_column_missing(tmp_path: Path)
     assert not faithfulness_check.passed
 
 
+def test_submission_audit_fails_when_test_question_count_is_not_exact(tmp_path: Path) -> None:
+    _create_minimal_submission_repo(tmp_path)
+    _write_test_questions_csv(tmp_path / "test_questions.csv", count=31)
+
+    checks = audit_submission.run_audit(
+        tmp_path,
+        smoke_test_runner=lambda _: (True, "mock smoke passed"),
+    )
+
+    row_count_check = next(
+        check for check in checks if check.name == "test_questions.csv has exactly 30 rows"
+    )
+    assert not row_count_check.passed
+
+
+def test_submission_audit_fails_when_evaluation_question_count_is_not_exact(tmp_path: Path) -> None:
+    _create_minimal_submission_repo(tmp_path)
+    _write_evaluation_questions_csv(tmp_path / "evaluation_questions.csv", count=29)
+
+    checks = audit_submission.run_audit(
+        tmp_path,
+        smoke_test_runner=lambda _: (True, "mock smoke passed"),
+    )
+
+    row_count_check = next(
+        check for check in checks if check.name == "evaluation_questions.csv has exactly 30 rows"
+    )
+    assert not row_count_check.passed
+
+
+def test_submission_audit_fails_when_evaluation_question_schema_is_noncanonical(
+    tmp_path: Path,
+) -> None:
+    _create_minimal_submission_repo(tmp_path)
+    _write_evaluation_questions_csv(
+        tmp_path / "evaluation_questions.csv",
+        fieldnames=[
+            "question",
+            "question_id",
+            "expected_source_id",
+            "expected_topic",
+            "answerable",
+            "question_type",
+            "difficulty",
+            "notes",
+        ],
+    )
+
+    checks = audit_submission.run_audit(
+        tmp_path,
+        smoke_test_runner=lambda _: (True, "mock smoke passed"),
+    )
+
+    schema_check = next(
+        check
+        for check in checks
+        if check.name == "evaluation_questions.csv matches canonical benchmark schema"
+    )
+    assert not schema_check.passed
+
+
+def test_makefile_evaluate_offline_uses_submission_facing_aliases() -> None:
+    result = subprocess.run(
+        ["make", "-n", "evaluate-offline"],
+        cwd=ROOT_DIR,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "rag_system.py --build-index --backend tfidf" in result.stdout
+    assert "rag_system.py --evaluate --backend tfidf --offline" in result.stdout
+
+
 def test_submission_package_creates_whitelisted_zip_and_excludes_caches(tmp_path: Path) -> None:
     _create_minimal_submission_repo(tmp_path)
     _write_text(tmp_path / ".venv" / "bin" / "python", "ignore\n")
@@ -187,9 +279,15 @@ def test_submission_package_creates_whitelisted_zip_and_excludes_caches(tmp_path
         names = set(archive.namelist())
 
     assert "rag_system.py" in names
+    assert "app.py" in names
     assert "src/ragfaq/stub.py" in names
     assert "knowledge_base/faqs.csv" in names
     assert "evaluation_questions.csv" in names
+    assert "SYSTEM_CARD.md" in names
+    assert "SUBMISSION_CHECKLIST.md" in names
+    assert "docs/demo_walkthrough.md" in names
+    assert "screenshots/README.md" in names
+    assert ".github/workflows/offline-ci.yml" in names
     assert "results/evaluation_summary.json" in names
     assert "results/dense_validation_summary.json" in names
     assert "results/dense_validation_report.md" in names

@@ -19,6 +19,17 @@ REQUIRED_FILES = [
     "PROJECT_REPORT.md",
 ]
 
+REQUIRED_EVALUATION_QUESTION_COLUMNS = [
+    "question_id",
+    "question",
+    "expected_source_id",
+    "expected_topic",
+    "answerable",
+    "question_type",
+    "difficulty",
+    "notes",
+]
+
 REQUIRED_TEST_QUESTION_COLUMNS = [
     "retrieval_recall_at_3",
     "faithfulness_score",
@@ -91,7 +102,7 @@ def _check_knowledge_base(root_dir: Path) -> AuditCheck:
     )
 
 
-def _read_test_questions(path: Path) -> tuple[list[dict[str, str]], list[str]]:
+def _read_csv_rows(path: Path) -> tuple[list[dict[str, str]], list[str]]:
     with path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         fieldnames = list(reader.fieldnames or [])
@@ -99,18 +110,56 @@ def _read_test_questions(path: Path) -> tuple[list[dict[str, str]], list[str]]:
     return rows, fieldnames
 
 
+def _check_evaluation_question_schema(root_dir: Path) -> AuditCheck:
+    csv_path = root_dir / "evaluation_questions.csv"
+    if not csv_path.is_file():
+        return AuditCheck(
+            name="evaluation_questions.csv matches canonical benchmark schema",
+            passed=False,
+            details="evaluation_questions.csv is missing",
+        )
+    _, fieldnames = _read_csv_rows(csv_path)
+    passed = fieldnames == REQUIRED_EVALUATION_QUESTION_COLUMNS
+    return AuditCheck(
+        name="evaluation_questions.csv matches canonical benchmark schema",
+        passed=passed,
+        details=(
+            "canonical field order confirmed"
+            if passed
+            else f"available columns: {', '.join(fieldnames)}"
+        ),
+    )
+
+
+def _check_csv_row_count(root_dir: Path, relative_path: str, *, exact_count: int) -> AuditCheck:
+    csv_path = root_dir / relative_path
+    check_name = f"{relative_path} has exactly {exact_count} rows"
+    if not csv_path.is_file():
+        return AuditCheck(
+            name=check_name,
+            passed=False,
+            details=f"{relative_path} is missing",
+        )
+    rows, _ = _read_csv_rows(csv_path)
+    return AuditCheck(
+        name=check_name,
+        passed=len(rows) == exact_count,
+        details=f"{len(rows)} rows found",
+    )
+
+
 def _check_test_question_count(root_dir: Path) -> AuditCheck:
     csv_path = root_dir / "test_questions.csv"
     if not csv_path.is_file():
         return AuditCheck(
-            name="test_questions.csv has at least 30 rows",
+            name="test_questions.csv has exactly 30 rows",
             passed=False,
             details="test_questions.csv is missing",
         )
-    rows, _ = _read_test_questions(csv_path)
+    rows, _ = _read_csv_rows(csv_path)
     return AuditCheck(
-        name="test_questions.csv has at least 30 rows",
-        passed=len(rows) >= 30,
+        name="test_questions.csv has exactly 30 rows",
+        passed=len(rows) == 30,
         details=f"{len(rows)} rows found",
     )
 
@@ -126,7 +175,7 @@ def _check_test_question_columns(root_dir: Path) -> list[AuditCheck]:
             )
             for column in REQUIRED_TEST_QUESTION_COLUMNS
         ]
-    _, fieldnames = _read_test_questions(csv_path)
+    _, fieldnames = _read_csv_rows(csv_path)
     return [
         AuditCheck(
             name=f"test_questions.csv contains {column}",
@@ -223,6 +272,8 @@ def run_audit(
         checks.append(_check_file_exists(repo_root, relative_path))
 
     checks.append(_check_knowledge_base(repo_root))
+    checks.append(_check_evaluation_question_schema(repo_root))
+    checks.append(_check_csv_row_count(repo_root, "evaluation_questions.csv", exact_count=30))
     checks.append(_check_test_question_count(repo_root))
     checks.extend(_check_test_question_columns(repo_root))
     checks.extend(_check_code_patterns(repo_root))

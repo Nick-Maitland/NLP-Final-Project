@@ -12,6 +12,7 @@ except ImportError:  # pragma: no cover - fallback for package-style imports
 SUBMISSION_ARCHIVE_NAME = "NLP-Final-Project-submission.zip"
 INCLUDE_PATHS = [
     "rag_system.py",
+    "app.py",
     "src",
     "knowledge_base",
     "evaluation_questions.csv",
@@ -19,9 +20,14 @@ INCLUDE_PATHS = [
     "failure_case_report.md",
     "PROJECT_REPORT.md",
     "README.md",
+    "SYSTEM_CARD.md",
+    "SUBMISSION_CHECKLIST.md",
     "requirements.txt",
     "requirements-lite.txt",
     "Makefile",
+    "docs/demo_walkthrough.md",
+    "screenshots/README.md",
+    ".github/workflows/offline-ci.yml",
     "scripts",
     "tests",
     "results/evaluation_summary.json",
