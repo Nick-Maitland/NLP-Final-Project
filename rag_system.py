@@ -18,6 +18,7 @@ from ragfaq.config import (
     ensure_runtime_directories,
     get_paths,
 )
+from ragfaq.demo import build_demo_trace_payload, demo_questions_for_run, run_demo, write_demo_markdown
 from ragfaq.evaluation import run_evaluation
 from ragfaq.generation import answer_question
 from ragfaq.ingest import discover_knowledge_files, load_documents
@@ -68,6 +69,8 @@ def _legacy_to_subcommand(argv: list[str]) -> list[str]:
             rewritten.extend(["--backend", BackendMode.TFIDF.value])
         if "--llm" not in rewritten and "--offline" not in rewritten:
             rewritten.extend(["--llm", LlmMode.OFFLINE.value])
+        if "--question" not in rewritten:
+            rewritten.extend(["--question", "What is self-attention?"])
         return rewritten
 
     return args
@@ -164,8 +167,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     demo_parser.add_argument(
         "--question",
-        default="What is self-attention?",
-        help="Optional demo question.",
+        default=None,
+        help="Optional single demo question. Omit to run the curated five-question showcase.",
     )
 
     return parser
@@ -476,36 +479,49 @@ def command_demo(args: argparse.Namespace) -> int:
             paths=paths,
             collection_name=args.collection_name,
         )
-    demo_backend = requested_backend
-    demo_llm = requested_llm
-    retrieval = retrieve(
-        question=args.question,
-        requested_backend=demo_backend,
+    questions = demo_questions_for_run(args.question)
+    entries = run_demo(
+        requested_backend=requested_backend,
+        requested_llm=requested_llm,
+        questions=questions,
+        paths=paths,
         top_k=top_k,
         candidate_k=candidate_k,
-        paths=paths,
         collection_name=args.collection_name,
     )
-    _print_auto_backend_note(
-        requested_backend,
-        retrieval.resolved_backend,
-        paths,
-        args.collection_name,
-    )
-    answer = answer_question(
-        question=args.question,
-        retrieved_chunks=retrieval.chunks,
-        requested_llm=demo_llm,
-        resolved_backend=retrieval.resolved_backend,
-    )
     print("Demo mode")
-    print(f"Question: {args.question}")
-    print(f"Resolved backend: {answer.resolved_backend.value}")
-    print(f"Resolved llm: {answer.resolved_llm.value}")
-    _print_retrieval_preview(answer.retrieved_chunks)
+    print(f"Questions: {len(entries)}")
+    if any(entry.answer.resolved_backend is BackendMode.TFIDF for entry in entries):
+        _print_auto_backend_note(
+            requested_backend,
+            BackendMode.TFIDF,
+            paths,
+            args.collection_name,
+        )
+    for index, entry in enumerate(entries, start=1):
+        print("")
+        print(f"Demo Question {index}/{len(entries)}")
+        print(f"Question: {entry.question}")
+        print(f"Resolved backend: {entry.answer.resolved_backend.value}")
+        print(f"Resolved llm: {entry.answer.resolved_llm.value}")
+        print(f"Latency (ms): {entry.latency_ms:.2f}")
+        print(f"Offline fallback used: {str(entry.offline_fallback_used).lower()}")
+        _print_retrieval_preview(entry.answer.retrieved_chunks)
+        print("")
+        _print_answer_sections(entry.answer, args.show_context)
+    write_demo_markdown(
+        entries,
+        requested_backend=requested_backend,
+        requested_llm=requested_llm,
+        paths=paths,
+        show_context=args.show_context,
+    )
     print("")
-    _print_answer_sections(answer, args.show_context)
-    _write_trace(retrieval.trace, _resolve_trace_output_path(args, paths))
+    print(f"Demo markdown: {paths.demo_run_path}")
+    _write_trace(
+        build_demo_trace_payload(entries),
+        _resolve_trace_output_path(args, paths),
+    )
     return 0
 
 

@@ -219,6 +219,64 @@ def test_openai_mode_without_key_errors_clearly(tmp_path: Path) -> None:
     assert "OPENAI_API_KEY is not set" in ask_result.stderr
 
 
+def test_demo_offline_creates_markdown_and_default_showcase(tmp_path: Path) -> None:
+    temp_root = prepare_temp_root(tmp_path)
+    env = os.environ.copy()
+    env["RAGFAQ_ROOT"] = str(temp_root)
+
+    build_result = run_cli("build", "--backend", "tfidf", env=env)
+    assert build_result.returncode == 0
+
+    demo_result = run_cli(
+        "demo",
+        "--backend",
+        "tfidf",
+        "--llm",
+        "offline",
+        env=env,
+    )
+    assert demo_result.returncode == 0
+    assert "Demo mode" in demo_result.stdout
+    assert "Questions: 5" in demo_result.stdout
+    assert "Offline fallback used: false" in demo_result.stdout
+    demo_run = temp_root / "results" / "demo_run.md"
+    assert demo_run.exists()
+    demo_text = demo_run.read_text(encoding="utf-8")
+    assert "# Demo Run" in demo_text
+    assert "## 1. What is self-attention?" in demo_text
+    assert "## 5. What is the capital city of France?" in demo_text
+
+
+def test_demo_auto_and_legacy_smoke_alias_run_single_question_when_requested(tmp_path: Path) -> None:
+    temp_root = prepare_temp_root(tmp_path)
+    env = os.environ.copy()
+    env["RAGFAQ_ROOT"] = str(temp_root)
+    env.pop("OPENAI_API_KEY", None)
+
+    build_result = run_cli("build", "--backend", "tfidf", env=env)
+    assert build_result.returncode == 0
+
+    auto_demo = run_cli(
+        "demo",
+        "--backend",
+        "auto",
+        "--llm",
+        "auto",
+        env=env,
+    )
+    assert auto_demo.returncode == 0
+    assert "Questions: 5" in auto_demo.stdout
+    assert "Auto backend fallback: using tfidf" in auto_demo.stdout
+    assert "Resolved llm: offline" in auto_demo.stdout
+
+    smoke_demo = run_cli("--smoke-test", "--offline", env=env)
+    assert smoke_demo.returncode == 0
+    assert "Questions: 1" in smoke_demo.stdout
+    demo_text = (temp_root / "results" / "demo_run.md").read_text(encoding="utf-8")
+    assert "## 1. What is self-attention?" in demo_text
+    assert "## 2." not in demo_text
+
+
 def test_build_auto_fallback_message_via_main(monkeypatch, capsys) -> None:
     import rag_system
 

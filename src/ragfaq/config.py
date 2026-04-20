@@ -35,6 +35,7 @@ class PathConfig:
     chunk_cache_path: Path
     chroma_dir: Path
     latest_trace_path: Path
+    demo_run_path: Path
     test_questions_path: Path
     scored_questions_path: Path
     evaluation_summary_path: Path
@@ -84,6 +85,7 @@ def get_paths() -> PathConfig:
         chunk_cache_path=index_dir / "chunks.json",
         chroma_dir=root_dir / "chroma_db",
         latest_trace_path=traces_dir / "latest_retrieval_trace.json",
+        demo_run_path=results_dir / "demo_run.md",
         test_questions_path=root_dir / "test_questions.csv",
         scored_questions_path=results_dir / "test_questions_scored.csv",
         evaluation_summary_path=results_dir / "evaluation_summary.json",

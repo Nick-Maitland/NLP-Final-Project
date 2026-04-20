@@ -58,6 +58,38 @@ make package
 `make smoke` and `make test` are designed to work in lite mode without network access, OpenAI,
 ChromaDB, or sentence-transformers.
 
+## Demo
+
+The local demo mode runs a small curated showcase and writes a Markdown artifact at
+`results/demo_run.md`.
+
+```bash
+python rag_system.py demo --backend tfidf --llm offline
+python rag_system.py demo --backend auto --llm auto
+```
+
+If you want to demo a single ad hoc question instead of the five built-in showcase questions:
+
+```bash
+python rag_system.py demo --backend tfidf --llm offline --question "What is self-attention?"
+```
+
+The CLI demo works offline. It prints the question, resolved backend, latency, fallback status,
+answer, and citations for each demo query, and refreshes `results/demo_run.md` after the run.
+
+### Optional Streamlit UI
+
+`app.py` is an optional local UI and is not required for tests, smoke runs, or submission.
+It is intentionally not included in the default dependency files.
+
+```bash
+pip install streamlit
+streamlit run app.py
+```
+
+The UI defaults to offline-safe settings and can show the answer, sources, retrieved context,
+and retrieval trace.
+
 ## Primary Commands
 
 ```bash
