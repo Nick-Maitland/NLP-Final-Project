@@ -36,6 +36,9 @@ class PathConfig:
     chroma_dir: Path
     latest_trace_path: Path
     test_questions_path: Path
+    scored_questions_path: Path
+    evaluation_summary_path: Path
+    evaluation_report_path: Path
     failure_report_path: Path
     readme_path: Path
     requirements_path: Path
@@ -82,6 +85,9 @@ def get_paths() -> PathConfig:
         chroma_dir=root_dir / "chroma_db",
         latest_trace_path=traces_dir / "latest_retrieval_trace.json",
         test_questions_path=root_dir / "test_questions.csv",
+        scored_questions_path=results_dir / "test_questions_scored.csv",
+        evaluation_summary_path=results_dir / "evaluation_summary.json",
+        evaluation_report_path=results_dir / "evaluation_report.md",
         failure_report_path=root_dir / "failure_case_report.md",
         readme_path=root_dir / "README.md",
         requirements_path=root_dir / "requirements.txt",

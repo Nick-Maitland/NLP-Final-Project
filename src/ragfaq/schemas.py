@@ -80,13 +80,21 @@ class AnswerResult:
 class EvaluationRow:
     question_id: str
     question: str
-    expected_answer: str
     expected_source_id: str
-    expected_keywords: str
+    expected_topic: str
+    answerable: bool
     retrieved_source_ids: str
-    recall_at_3: float
-    generated_answer: str
+    retrieval_recall_at_3: float | None
+    reciprocal_rank: float | None
     faithfulness_score: float
-    resolved_backend: str
-    resolved_llm: str
+    citation_valid: bool
+    abstention_correct: bool
+    answer: str
     notes: str
+    latency_ms: float = 0.0
+    resolved_backend: str = ""
+    resolved_llm: str = ""
+    citation_warnings: str = ""
+    retrieved_chunk_ids: str = ""
+    retrieved_chunk_summaries: str = ""
+    failure_type: str = ""

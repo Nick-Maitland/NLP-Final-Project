@@ -23,15 +23,16 @@ def prepare_temp_root(tmp_path: Path) -> Path:
             [
                 "question_id",
                 "question",
-                "expected_answer",
                 "expected_source_id",
-                "expected_keywords",
+                "expected_topic",
+                "answerable",
                 "retrieved_source_ids",
-                "recall_at_3",
-                "generated_answer",
+                "retrieval_recall_at_3",
+                "reciprocal_rank",
                 "faithfulness_score",
-                "resolved_backend",
-                "resolved_llm",
+                "citation_valid",
+                "abstention_correct",
+                "answer",
                 "notes",
             ]
         )
@@ -39,9 +40,9 @@ def prepare_temp_root(tmp_path: Path) -> Path:
             [
                 "Q01",
                 "What is self-attention?",
-                "Self-attention lets each token attend to other tokens.",
                 "sample",
-                "self-attention;token;sequence",
+                "attention",
+                "true",
                 "",
                 "",
                 "",
@@ -49,6 +50,7 @@ def prepare_temp_root(tmp_path: Path) -> Path:
                 "",
                 "",
                 "",
+                "single-hop",
             ]
         )
     (tmp_path / "failure_case_report.md").write_text("# Failure Case Report\n", encoding="utf-8")

@@ -1,0 +1,133 @@
+{
+  "question_count": 30,
+  "answerable_count": 24,
+  "unanswerable_count": 6,
+  "retrieval_recall_at_3_answerable": 0.92,
+  "mrr_at_3_answerable": 0.78,
+  "faithfulness_avg": 0.85,
+  "citation_valid_rate": 1.0,
+  "abstention_accuracy_unanswerable": 0.67,
+  "avg_latency_ms": 5.32,
+  "median_latency_ms": 2.23,
+  "per_topic": {
+    "attention": {
+      "question_count": 3,
+      "answerable_count": 3,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.91
+    },
+    "bert_style_encoders": {
+      "question_count": 2,
+      "answerable_count": 2,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.89
+    },
+    "chromadb_vector_search": {
+      "question_count": 2,
+      "answerable_count": 2,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 0.75,
+      "faithfulness_avg": 0.68
+    },
+    "embeddings": {
+      "question_count": 1,
+      "answerable_count": 1,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.89
+    },
+    "evaluation_metrics": {
+      "question_count": 3,
+      "answerable_count": 3,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.86
+    },
+    "gpt_style_decoders": {
+      "question_count": 2,
+      "answerable_count": 2,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.9
+    },
+    "hallucination_faithfulness": {
+      "question_count": 1,
+      "answerable_count": 1,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.92
+    },
+    "lstms_grus": {
+      "question_count": 2,
+      "answerable_count": 2,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.82
+    },
+    "neural_networks": {
+      "question_count": 2,
+      "answerable_count": 2,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 0.75,
+      "faithfulness_avg": 0.81
+    },
+    "out_of_scope": {
+      "question_count": 6,
+      "answerable_count": 0,
+      "unanswerable_count": 6,
+      "retrieval_recall_at_3_avg": null,
+      "faithfulness_avg": 0.81
+    },
+    "rag": {
+      "question_count": 2,
+      "answerable_count": 2,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 0.25,
+      "faithfulness_avg": 0.68
+    },
+    "rnns": {
+      "question_count": 1,
+      "answerable_count": 1,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.87
+    },
+    "rnns_training": {
+      "question_count": 2,
+      "answerable_count": 2,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.94
+    },
+    "sequence_to_sequence": {
+      "question_count": 1,
+      "answerable_count": 1,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.94
+    },
+    "tensors_and_pytorch": {
+      "question_count": 2,
+      "answerable_count": 2,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 0.75,
+      "faithfulness_avg": 0.96
+    },
+    "tokenization": {
+      "question_count": 1,
+      "answerable_count": 1,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.87
+    },
+    "transformers": {
+      "question_count": 3,
+      "answerable_count": 3,
+      "unanswerable_count": 0,
+      "retrieval_recall_at_3_avg": 1.0,
+      "faithfulness_avg": 0.86
+    }
+  }
+}

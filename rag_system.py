@@ -432,7 +432,7 @@ def command_evaluate(args: argparse.Namespace) -> int:
             "Auto backend fallback: evaluation is using tfidf because dense retrieval "
             f"is unavailable ({build_summary['dense_index'].get('reason', 'unknown reason')})."
         )
-    results = run_evaluation(
+    results, summary = run_evaluation(
         requested_backend=requested_backend,
         requested_llm=requested_llm,
         paths=paths,
@@ -442,14 +442,24 @@ def command_evaluate(args: argparse.Namespace) -> int:
         show_context=args.show_context,
         trace_output_path=_resolve_trace_output_path(args, paths),
     )
-    average_recall = sum(result.recall_at_3 for result in results) / max(len(results), 1)
-    average_faithfulness = sum(result.faithfulness_score for result in results) / max(
-        len(results), 1
-    )
     print(f"Evaluated rows: {len(results)}")
-    print(f"Average Recall@3: {average_recall:.2f}")
-    print(f"Average faithfulness: {average_faithfulness:.2f}")
+    print(f"Answerable rows: {summary['answerable_count']}")
+    print(f"Unanswerable rows: {summary['unanswerable_count']}")
+    print(
+        "Retrieval Recall@3 (answerable): "
+        f"{summary['retrieval_recall_at_3_answerable']:.2f}"
+    )
+    print(f"MRR@3 (answerable): {summary['mrr_at_3_answerable']:.2f}")
+    print(f"Average faithfulness: {summary['faithfulness_avg']:.2f}")
+    print(f"Citation valid rate: {summary['citation_valid_rate']:.2f}")
+    abstention_accuracy = summary["abstention_accuracy_unanswerable"]
+    if abstention_accuracy is not None:
+        print(f"Abstention accuracy (unanswerable): {abstention_accuracy:.2f}")
+    print(f"Average latency (ms): {summary['avg_latency_ms']:.2f}")
     print(f"Updated CSV: {paths.test_questions_path}")
+    print(f"Scored CSV: {paths.scored_questions_path}")
+    print(f"Summary JSON: {paths.evaluation_summary_path}")
+    print(f"Evaluation report: {paths.evaluation_report_path}")
     print(f"Updated report: {paths.failure_report_path}")
     return 0
 
