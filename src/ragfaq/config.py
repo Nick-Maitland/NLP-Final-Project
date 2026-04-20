@@ -39,6 +39,7 @@ class PathConfig:
     index_dir: Path
     cache_dir: Path
     results_dir: Path
+    comparisons_dir: Path
     traces_dir: Path
     lexical_index_path: Path
     chunk_cache_path: Path
@@ -50,7 +51,10 @@ class PathConfig:
     evaluation_summary_path: Path
     evaluation_report_path: Path
     failure_report_path: Path
+    backend_comparison_summary_path: Path
+    backend_comparison_table_path: Path
     readme_path: Path
+    project_report_path: Path
     requirements_path: Path
 
 
@@ -81,6 +85,7 @@ def get_paths() -> PathConfig:
     index_dir = data_dir / "indexes"
     cache_dir = data_dir / "cache"
     results_dir = root_dir / "results"
+    comparisons_dir = results_dir / "comparisons"
     traces_dir = results_dir / "traces"
     return PathConfig(
         root_dir=root_dir,
@@ -89,6 +94,7 @@ def get_paths() -> PathConfig:
         index_dir=index_dir,
         cache_dir=cache_dir,
         results_dir=results_dir,
+        comparisons_dir=comparisons_dir,
         traces_dir=traces_dir,
         lexical_index_path=index_dir / "tfidf_index.json",
         chunk_cache_path=index_dir / "chunks.json",
@@ -101,6 +107,9 @@ def get_paths() -> PathConfig:
         evaluation_report_path=results_dir / "evaluation_report.md",
         failure_report_path=root_dir / "failure_case_report.md",
         readme_path=root_dir / "README.md",
+        backend_comparison_summary_path=comparisons_dir / "backend_comparison_summary.json",
+        backend_comparison_table_path=comparisons_dir / "backend_comparison_table.md",
+        project_report_path=root_dir / "PROJECT_REPORT.md",
         requirements_path=root_dir / "requirements.txt",
     )
 
@@ -143,6 +152,7 @@ def ensure_runtime_directories(paths: PathConfig | None = None) -> PathConfig:
     paths.cache_dir.mkdir(parents=True, exist_ok=True)
     paths.chroma_dir.mkdir(parents=True, exist_ok=True)
     paths.results_dir.mkdir(parents=True, exist_ok=True)
+    paths.comparisons_dir.mkdir(parents=True, exist_ok=True)
     paths.traces_dir.mkdir(parents=True, exist_ok=True)
     return paths
 

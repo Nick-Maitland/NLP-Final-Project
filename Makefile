@@ -5,7 +5,7 @@ VENV_PYTHON := $(VENV_BIN)/python
 VENV_PIP := $(VENV_BIN)/pip
 VENV_PYTEST := $(VENV_BIN)/pytest
 
-.PHONY: setup-lite setup-full smoke evaluate-offline test clean package
+.PHONY: setup-lite setup-full smoke evaluate-offline compare-offline compare-full test clean package
 
 $(VENV_PYTHON):
 	$(PYTHON_BOOTSTRAP) -m venv $(VENV_DIR)
@@ -29,6 +29,12 @@ smoke: setup-lite
 evaluate-offline: setup-lite
 	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(VENV_PYTHON) rag_system.py build --backend tfidf
 	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(VENV_PYTHON) rag_system.py evaluate --backend tfidf --llm offline
+
+compare-offline: setup-lite
+	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(VENV_PYTHON) scripts/run_backend_comparison.py --offline-only
+
+compare-full: setup-lite
+	HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(VENV_PYTHON) scripts/run_backend_comparison.py --include-openai
 
 test: setup-lite
 	PYTEST_BIN="$$(if [ -x "$(VENV_PYTEST)" ]; then printf '%s' "$(VENV_PYTEST)"; else command -v pytest; fi)" && \

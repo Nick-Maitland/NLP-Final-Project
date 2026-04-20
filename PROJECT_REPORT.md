@@ -65,7 +65,23 @@ python rag_system.py evaluate --backend tfidf --llm offline
 
 These results are promising for a course prototype, but they are not perfect and should not be presented as production-ready.
 
-## 9. Failure Cases
+## 9. Backend Comparison
+
+<!-- backend-comparison:start -->
+Auto-generated from real comparison artifacts under `results/comparisons/backend_comparison_summary.json` and `results/comparisons/backend_comparison_table.md`.
+Latest comparison run: `2026-04-20T14:57:16.089471+00:00`.
+
+| Configuration | Status | Requested Backend | Requested LLM | Resolved Backend | Resolved LLM | Questions | Answerable | Unanswerable | Recall@3 | MRR@3 | Faithfulness | Citation Validity | Abstention Accuracy | False Abstention | Avg Latency (ms) | Reason |
+| --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| tfidf + offline | success | tfidf | offline | tfidf | offline | 30 | 24 | 6 | 0.88 | 0.69 | 0.91 | 1.00 | 1.00 | 0.00 | 1.57 | n/a |
+| auto + offline | success | auto | offline | tfidf | offline | 30 | 24 | 6 | 0.88 | 0.69 | 0.91 | 1.00 | 1.00 | 0.00 | 1.74 | n/a |
+| chroma + offline | skipped | chroma | offline | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | dense retrieval unavailable: chromadb unavailable: ModuleNotFoundError: No module named 'chromadb' |
+| hybrid + offline | skipped | hybrid | offline | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | dense retrieval unavailable: chromadb unavailable: ModuleNotFoundError: No module named 'chromadb' |
+| chroma + openai | skipped | chroma | openai | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | openai sdk unavailable: ModuleNotFoundError: No module named 'openai' |
+| hybrid + openai | skipped | hybrid | openai | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | openai sdk unavailable: ModuleNotFoundError: No module named 'openai' |
+<!-- backend-comparison:end -->
+
+## 10. Failure Cases
 
 The weakest cases come from retrieval coverage, multi-hop reasoning, and abstention behavior:
 
@@ -76,7 +92,7 @@ The weakest cases come from retrieval coverage, multi-hop reasoning, and abstent
 
 These examples are documented in more detail in `failure_case_report.md`.
 
-## 10. Lessons Learned
+## 11. Lessons Learned
 
 Three lessons stood out during this project:
 

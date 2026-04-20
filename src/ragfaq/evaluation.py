@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import time
-from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -270,7 +269,7 @@ def _to_scored_row(result: EvaluationRow) -> dict[str, str]:
     }
 
 
-def run_evaluation(
+def compute_evaluation_results(
     requested_backend: BackendMode,
     requested_llm: LlmMode,
     paths: PathConfig | None = None,
@@ -322,29 +321,89 @@ def run_evaluation(
         )
 
     summary = summarize_results(results)
+    return results, summary, traces
 
+
+def write_root_question_csv(results: list[EvaluationRow], output_path: Path) -> None:
     write_csv_rows(
-        paths.test_questions_path,
+        output_path,
         ROOT_QUESTION_FIELDNAMES,
         [_to_root_row(result) for result in results],
     )
+
+
+def write_scored_results_csv(results: list[EvaluationRow], output_path: Path) -> None:
     write_csv_rows(
-        paths.scored_questions_path,
+        output_path,
         SCORED_FIELDNAMES,
         [_to_scored_row(result) for result in results],
     )
-    dump_json(paths.evaluation_summary_path, summary)
-    generate_evaluation_report(results, summary, paths.evaluation_report_path)
-    generate_failure_report(results, paths.failure_report_path)
 
+
+def write_evaluation_artifacts(
+    results: list[EvaluationRow],
+    summary: dict[str, object],
+    *,
+    root_questions_path: Path | None = None,
+    scored_questions_path: Path | None = None,
+    summary_json_path: Path | None = None,
+    evaluation_report_path: Path | None = None,
+    failure_report_path: Path | None = None,
+    trace_output_path: Path | None = None,
+    traces: list[dict[str, object]] | None = None,
+) -> None:
+    if root_questions_path is not None:
+        write_root_question_csv(results, root_questions_path)
+    if scored_questions_path is not None:
+        write_scored_results_csv(results, scored_questions_path)
+    if summary_json_path is not None:
+        dump_json(summary_json_path, summary)
+    if evaluation_report_path is not None:
+        generate_evaluation_report(results, summary, evaluation_report_path)
+    if failure_report_path is not None:
+        generate_failure_report(results, failure_report_path)
     if trace_output_path is not None:
         dump_json(
             trace_output_path,
             {
                 "mode": "evaluation",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "question_count": len(traces),
-                "traces": traces,
+                "question_count": len(traces or []),
+                "traces": traces or [],
             },
         )
+
+
+def run_evaluation(
+    requested_backend: BackendMode,
+    requested_llm: LlmMode,
+    paths: PathConfig | None = None,
+    top_k: int = DEFAULT_TOP_K,
+    candidate_k: int = DEFAULT_CANDIDATE_K,
+    collection_name: str = COLLECTION_NAME,
+    show_context: bool = False,
+    trace_output_path: Path | None = None,
+) -> tuple[list[EvaluationRow], dict[str, object]]:
+    paths = paths or get_paths()
+    results, summary, traces = compute_evaluation_results(
+        requested_backend=requested_backend,
+        requested_llm=requested_llm,
+        paths=paths,
+        top_k=top_k,
+        candidate_k=candidate_k,
+        collection_name=collection_name,
+        show_context=show_context,
+    )
+
+    write_evaluation_artifacts(
+        results,
+        summary,
+        root_questions_path=paths.test_questions_path,
+        scored_questions_path=paths.scored_questions_path,
+        summary_json_path=paths.evaluation_summary_path,
+        evaluation_report_path=paths.evaluation_report_path,
+        failure_report_path=paths.failure_report_path,
+        trace_output_path=trace_output_path,
+        traces=traces,
+    )
     return results, summary
