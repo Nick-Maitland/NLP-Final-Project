@@ -103,6 +103,19 @@ python scripts/preflight_m1.py
 
 Full setup installs the complete project stack. The dense path may still require a locally cached MiniLM model before `--backend chroma` or `--backend hybrid` can run successfully.
 
+## CI / Reproducibility
+
+The repository includes an offline validation workflow at `.github/workflows/offline-ci.yml`.
+It validates the clean-clone offline path using only `requirements-lite.txt` and runs:
+
+```bash
+make smoke
+make test
+python scripts/audit_submission.py
+```
+
+This workflow does not require `OPENAI_API_KEY`, ChromaDB, `sentence-transformers`, or model downloads.
+
 ## Commands To Run
 
 ### CLI Prototype

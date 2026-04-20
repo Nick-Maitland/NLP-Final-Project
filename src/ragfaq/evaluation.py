@@ -231,6 +231,7 @@ def _row_from_result(
         abstention_correct=abstention_correct,
         answer=answer.answer_text,
         notes=row.get("notes") or "",
+        abstained=answer.abstained,
         latency_ms=round(latency_ms, 2),
         resolved_backend=answer.resolved_backend.value,
         resolved_llm=answer.resolved_llm.value,

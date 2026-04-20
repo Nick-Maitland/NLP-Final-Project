@@ -8,15 +8,14 @@ version = "0.1.0"
 description = "RAG-based FAQ answering system for Durham College NLP Project 10."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
-dependencies = [
-  "beautifulsoup4>=4.12,<5",
-]
+dependencies = []
 
 [project.optional-dependencies]
 lite = [
   "pytest>=8.3,<9",
 ]
 full = [
+  "beautifulsoup4>=4.12,<5",
   "openai>=2.8,<3",
   "chromadb>=1.1,<2",
   "sentence-transformers>=3,<4",

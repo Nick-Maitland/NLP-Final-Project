@@ -74,6 +74,10 @@ class AnswerResult:
     raw_answer_text: str = ""
     citation_warnings: list[str] = field(default_factory=list)
     abstained: bool = False
+    confidence_score: float = 0.0
+    confidence_reasons: list[str] = field(default_factory=list)
+    confidence_gate_triggered: bool = False
+    question_type: str = ""
 
 
 @dataclass(frozen=True)
@@ -91,6 +95,7 @@ class EvaluationRow:
     abstention_correct: bool
     answer: str
     notes: str
+    abstained: bool = False
     latency_ms: float = 0.0
     resolved_backend: str = ""
     resolved_llm: str = ""

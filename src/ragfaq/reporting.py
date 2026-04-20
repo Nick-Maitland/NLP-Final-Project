@@ -27,6 +27,7 @@ def summarize_results(results: list[EvaluationRow]) -> dict[str, object]:
     abstention_values = [
         1.0 if result.abstention_correct else 0.0 for result in unanswerable
     ]
+    false_abstention_values = [1.0 if result.abstained else 0.0 for result in answerable]
 
     per_topic: dict[str, dict[str, float | int]] = {}
     for result in results:
@@ -78,6 +79,10 @@ def summarize_results(results: list[EvaluationRow]) -> dict[str, object]:
             sum(abstention_values) / max(len(abstention_values), 1),
             2,
         ) if unanswerable else None,
+        "false_abstention_rate_answerable": round(
+            sum(false_abstention_values) / max(len(false_abstention_values), 1),
+            2,
+        ) if answerable else None,
         "avg_latency_ms": round(sum(latency_values) / max(len(latency_values), 1), 2),
         "median_latency_ms": round(statistics.median(latency_values), 2) if latency_values else 0.0,
         "per_topic": dict(sorted(per_topic.items())),
@@ -99,6 +104,10 @@ def _severity(result: EvaluationRow) -> float:
 
 def classify_failure(result: EvaluationRow) -> str:
     if not result.answerable and not result.abstention_correct:
+        return "generation"
+    if result.answerable and result.abstained:
+        if (result.retrieval_recall_at_3 or 0.0) < 1.0:
+            return "retrieval"
         return "generation"
     if result.answerable and (result.retrieval_recall_at_3 or 0.0) < 0.5:
         return "retrieval"
@@ -147,6 +156,10 @@ def generate_failure_report(results: list[EvaluationRow], output_path: Path) -> 
         f"- MRR@3 on answerable questions: {summary['mrr_at_3_answerable']:.2f}",
         f"- Faithfulness average: {summary['faithfulness_avg']:.2f}",
         f"- Citation valid rate: {summary['citation_valid_rate']:.2f}",
+        (
+            "- False abstention rate (answerable): "
+            f"{summary['false_abstention_rate_answerable']:.2f}"
+        ),
         "",
         "## Concrete Weak Examples",
         "",
@@ -215,6 +228,7 @@ def generate_evaluation_report(
         f"- Faithfulness average: {summary['faithfulness_avg']:.2f}",
         f"- Citation valid rate: {summary['citation_valid_rate']:.2f}",
         f"- Abstention accuracy (unanswerable): {summary['abstention_accuracy_unanswerable'] if summary['abstention_accuracy_unanswerable'] is not None else 'n/a'}",
+        f"- False abstention rate (answerable): {summary['false_abstention_rate_answerable'] if summary['false_abstention_rate_answerable'] is not None else 'n/a'}",
         f"- Average latency (ms): {summary['avg_latency_ms']:.2f}",
         f"- Median latency (ms): {summary['median_latency_ms']:.2f}",
         "",
@@ -240,6 +254,7 @@ def generate_evaluation_report(
             f"- Paraphrased questions: {len(paraphrase)}",
             f"- Unanswerable questions answered incorrectly: {len(unanswerable_failures)}",
             f"- Citation-valid answers: {summary['citation_valid_rate']:.2f}",
+            f"- False abstentions on answerable questions: {summary['false_abstention_rate_answerable'] if summary['false_abstention_rate_answerable'] is not None else 'n/a'}",
             f"- Weakest answerable topics by recall: "
             + (
                 ", ".join(f"{topic} ({score:.2f})" for topic, score in weakest_topics)

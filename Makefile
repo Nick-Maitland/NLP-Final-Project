@@ -13,9 +13,9 @@ $(VENV_PYTHON):
 	-$(VENV_PIP) install --upgrade pip setuptools wheel
 
 setup-lite: $(VENV_PYTHON)
-	$(VENV_PIP) install -r requirements-lite.txt
-	$(VENV_PIP) show wheel >/dev/null 2>&1 || $(VENV_PIP) install wheel
-	$(VENV_PIP) show ragfaq >/dev/null 2>&1 || $(VENV_PIP) install --no-build-isolation -e .
+	@if ! $(VENV_PIP) install -r requirements-lite.txt; then \
+		echo "[setup-lite] warning: could not install requirements-lite.txt in this environment; continuing with the offline-safe local fallback path."; \
+	fi
 
 setup-full: $(VENV_PYTHON)
 	$(VENV_PIP) install -r requirements.txt
@@ -23,14 +23,16 @@ setup-full: $(VENV_PYTHON)
 	$(VENV_PIP) show ragfaq >/dev/null 2>&1 || $(VENV_PIP) install --no-build-isolation -e .
 
 smoke: setup-lite
-	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHON="$(VENV_PYTHON)" PYTEST="$(VENV_PYTEST)" bash scripts/local_smoke_test.sh
+	PYTEST_BIN="$$(if [ -x "$(VENV_PYTEST)" ]; then printf '%s' "$(VENV_PYTEST)"; else command -v pytest; fi)" && \
+	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHON="$(VENV_PYTHON)" PYTEST="$$PYTEST_BIN" bash scripts/local_smoke_test.sh
 
 evaluate-offline: setup-lite
 	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(VENV_PYTHON) rag_system.py build --backend tfidf
 	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(VENV_PYTHON) rag_system.py evaluate --backend tfidf --llm offline
 
 test: setup-lite
-	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(VENV_PYTHON) -m pytest -q
+	PYTEST_BIN="$$(if [ -x "$(VENV_PYTEST)" ]; then printf '%s' "$(VENV_PYTEST)"; else command -v pytest; fi)" && \
+	OPENAI_API_KEY= HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 "$$PYTEST_BIN" -q
 
 clean:
 	rm -rf $(VENV_DIR) .pytest_cache build dist .ragfaq *.egg-info src/*.egg-info

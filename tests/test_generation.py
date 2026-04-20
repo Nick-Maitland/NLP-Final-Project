@@ -91,6 +91,62 @@ def test_offline_generator_abstains_when_context_is_insufficient() -> None:
     assert answer.answer_text == generation_module.ABSTENTION_TEXT
 
 
+def test_offline_generator_abstains_for_topical_but_unsupported_factoid() -> None:
+    generator = generation_module.OfflineExtractiveGenerator()
+    chunks = [
+        RetrievedChunk(
+            rank=1,
+            chunk_id="pytorch::chunk000",
+            source_id="tensors_and_pytorch_basics",
+            title="PyTorch basics",
+            text=(
+                "PyTorch is popular because it supports automatic differentiation. "
+                "PyTorch tensors can move between CPU and GPU."
+            ),
+            score=4.02,
+            backend="tfidf",
+            metadata={
+                "source": "knowledge_base/docs/tensors_and_pytorch_basics.md",
+                "topic": "tensors_and_pytorch",
+                "chunk_index": "0",
+            },
+        ),
+        RetrievedChunk(
+            rank=2,
+            chunk_id="pytorch::chunk001",
+            source_id="tensors_and_pytorch_basics",
+            title="PyTorch basics",
+            text="PyTorch uses tensors to store parameters, activations, gradients, and outputs.",
+            score=3.42,
+            backend="tfidf",
+            metadata={
+                "source": "knowledge_base/docs/tensors_and_pytorch_basics.md",
+                "topic": "tensors_and_pytorch",
+                "chunk_index": "1",
+            },
+        ),
+        RetrievedChunk(
+            rank=3,
+            chunk_id="nn::chunk000",
+            source_id="neural_networks_basics",
+            title="Neural networks",
+            text="A perceptron adds weighted inputs and a bias before applying an activation.",
+            score=0.0,
+            backend="tfidf",
+            metadata={
+                "source": "knowledge_base/docs/neural_networks_basics.md",
+                "topic": "neural_networks",
+                "chunk_index": "0",
+            },
+        ),
+    ]
+    answer = generator.generate("Who founded PyTorch?", chunks)
+    assert answer.abstained is True
+    assert answer.answer_text == generation_module.ABSTENTION_TEXT
+    assert answer.confidence_gate_triggered is True
+    assert any("evidence type needed" in reason for reason in answer.confidence_reasons or [])
+
+
 def test_validate_citations_warns_for_missing_and_invalid_references() -> None:
     chunks = _chunks()
     assert generation_module.validate_citations("No citations here.", chunks, abstained=False) == [
@@ -126,6 +182,7 @@ def test_answer_question_populates_citation_fields(monkeypatch: pytest.MonkeyPat
     assert answer.raw_answer_text == "Self-attention compares tokens."
     assert answer.citation_warnings == []
     assert answer.abstained is False
+    assert answer.confidence_gate_triggered is False
 
 
 def test_openai_generator_uses_gpt4o_mini_and_temperature_zero(

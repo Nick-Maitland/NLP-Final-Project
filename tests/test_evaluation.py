@@ -119,6 +119,7 @@ def test_evaluate_writes_root_and_results_outputs(tmp_path: Path) -> None:
     summary = json.loads((temp_root / "results" / "evaluation_summary.json").read_text())
     assert summary["question_count"] == 2
     assert "retrieval_recall_at_3_answerable" in summary
+    assert "false_abstention_rate_answerable" in summary
     assert "per_topic" in summary
 
     report = (temp_root / "results" / "evaluation_report.md").read_text(encoding="utf-8")

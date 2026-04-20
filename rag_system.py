@@ -295,6 +295,9 @@ def _print_answer_sections(answer, show_context: bool) -> None:
     print(answer_text)
     print("")
     _print_sources(answer.retrieved_chunks)
+    if answer.abstained and answer.confidence_gate_triggered and answer.confidence_reasons:
+        reason_text = "; ".join(answer.confidence_reasons[:2])
+        print(f"Confidence gate: abstained because {reason_text}")
     for warning in answer.citation_warnings:
         print(f"WARNING: {warning}")
     if show_context:
@@ -458,6 +461,9 @@ def command_evaluate(args: argparse.Namespace) -> int:
     abstention_accuracy = summary["abstention_accuracy_unanswerable"]
     if abstention_accuracy is not None:
         print(f"Abstention accuracy (unanswerable): {abstention_accuracy:.2f}")
+    false_abstention_rate = summary["false_abstention_rate_answerable"]
+    if false_abstention_rate is not None:
+        print(f"False abstention rate (answerable): {false_abstention_rate:.2f}")
     print(f"Average latency (ms): {summary['avg_latency_ms']:.2f}")
     print(f"Updated CSV: {paths.test_questions_path}")
     print(f"Scored CSV: {paths.scored_questions_path}")

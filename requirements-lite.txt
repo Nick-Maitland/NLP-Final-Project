@@ -1,3 +1,2 @@
-beautifulsoup4>=4.12,<5
+# The offline-safe path avoids dense/OpenAI dependencies and keeps installs light.
 pytest>=8.3,<9
-
