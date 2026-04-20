@@ -79,6 +79,15 @@ def test_help_works() -> None:
     assert "--build-index" in result.stdout or "Compatibility aliases" in result.stdout
 
 
+def test_repo_inspect_kb_reports_faq_count_and_clean_chunks() -> None:
+    env = os.environ.copy()
+    inspect_result = run_cli("inspect-kb", env=env)
+    assert inspect_result.returncode == 0
+    assert "FAQ rows: 102" in inspect_result.stdout
+    assert "Too-short chunks: none" in inspect_result.stdout
+    assert "Duplicate-like chunks skipped: 0" in inspect_result.stdout
+
+
 def test_inspect_build_and_ask_offline(tmp_path: Path) -> None:
     temp_root = prepare_temp_root(tmp_path)
     env = os.environ.copy()

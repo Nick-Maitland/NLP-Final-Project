@@ -2,21 +2,21 @@
   "question_count": 30,
   "answerable_count": 24,
   "unanswerable_count": 6,
-  "retrieval_recall_at_3_answerable": 0.92,
-  "mrr_at_3_answerable": 0.78,
-  "faithfulness_avg": 0.87,
+  "retrieval_recall_at_3_answerable": 0.88,
+  "mrr_at_3_answerable": 0.69,
+  "faithfulness_avg": 0.91,
   "citation_valid_rate": 1.0,
   "abstention_accuracy_unanswerable": 1.0,
-  "false_abstention_rate_answerable": 0.04,
-  "avg_latency_ms": 1.46,
-  "median_latency_ms": 1.23,
+  "false_abstention_rate_answerable": 0.0,
+  "avg_latency_ms": 1.53,
+  "median_latency_ms": 1.47,
   "per_topic": {
     "attention": {
       "question_count": 3,
       "answerable_count": 3,
       "unanswerable_count": 0,
       "retrieval_recall_at_3_avg": 1.0,
-      "faithfulness_avg": 0.91
+      "faithfulness_avg": 0.94
     },
     "bert_style_encoders": {
       "question_count": 2,
@@ -29,8 +29,8 @@
       "question_count": 2,
       "answerable_count": 2,
       "unanswerable_count": 0,
-      "retrieval_recall_at_3_avg": 0.75,
-      "faithfulness_avg": 0.67
+      "retrieval_recall_at_3_avg": 0.5,
+      "faithfulness_avg": 0.94
     },
     "embeddings": {
       "question_count": 1,
@@ -43,8 +43,8 @@
       "question_count": 3,
       "answerable_count": 3,
       "unanswerable_count": 0,
-      "retrieval_recall_at_3_avg": 1.0,
-      "faithfulness_avg": 0.86
+      "retrieval_recall_at_3_avg": 0.67,
+      "faithfulness_avg": 0.92
     },
     "gpt_style_decoders": {
       "question_count": 2,
@@ -72,7 +72,7 @@
       "answerable_count": 2,
       "unanswerable_count": 0,
       "retrieval_recall_at_3_avg": 0.75,
-      "faithfulness_avg": 0.81
+      "faithfulness_avg": 0.92
     },
     "out_of_scope": {
       "question_count": 6,
@@ -85,8 +85,8 @@
       "question_count": 2,
       "answerable_count": 2,
       "unanswerable_count": 0,
-      "retrieval_recall_at_3_avg": 0.25,
-      "faithfulness_avg": 0.67
+      "retrieval_recall_at_3_avg": 0.0,
+      "faithfulness_avg": 0.94
     },
     "rnns": {
       "question_count": 1,
@@ -114,7 +114,7 @@
       "answerable_count": 2,
       "unanswerable_count": 0,
       "retrieval_recall_at_3_avg": 0.75,
-      "faithfulness_avg": 0.96
+      "faithfulness_avg": 0.92
     },
     "tokenization": {
       "question_count": 1,
@@ -128,7 +128,7 @@
       "answerable_count": 3,
       "unanswerable_count": 0,
       "retrieval_recall_at_3_avg": 1.0,
-      "faithfulness_avg": 0.86
+      "faithfulness_avg": 0.89
     }
   }
 }

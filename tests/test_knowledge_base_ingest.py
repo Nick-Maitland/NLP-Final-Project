@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -97,3 +98,19 @@ def test_faq_csv_missing_columns_raises_clear_error(
     monkeypatch.setenv("RAGFAQ_ROOT", str(tmp_path))
     with pytest.raises(RagFaqError, match="missing required columns"):
         load_documents(get_paths())
+
+
+def test_repo_faq_csv_has_unique_nonempty_required_fields() -> None:
+    faq_path = REPO_ROOT / "knowledge_base" / "faqs.csv"
+    with faq_path.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(__import__("csv").DictReader(handle))
+
+    assert len(rows) >= 100
+    required = ["source_id", "question", "answer", "topic", "difficulty"]
+    for row in rows:
+        for field in required:
+            assert row[field].strip() != ""
+
+    counts = Counter(row["source_id"].strip() for row in rows)
+    duplicates = [source_id for source_id, count in counts.items() if count > 1]
+    assert duplicates == []
