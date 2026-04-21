@@ -16,7 +16,7 @@ This repository is a prototype NLP course project rather than a production syste
 | 30 test questions | Pass | `evaluation_questions.csv`, `test_questions.csv`, and `results/test_questions_scored.csv` contain 30 rows (`Q01` through `Q30`) | Meets the required evaluation set size while keeping the benchmark clean |
 | Retrieval Recall@3 | Pass | `results/evaluation_summary.json` reports `retrieval_recall_at_3_answerable = 0.88` | Retrieval quality is measured and reported honestly |
 | Answer faithfulness | Pass | `results/evaluation_summary.json` reports `faithfulness_avg = 0.91`; faithfulness is part of the evaluation pipeline | Faithfulness is explicitly evaluated rather than implied |
-| Required files present | Pass | `python scripts/audit_submission.py` passed all 15 checks, including `rag_system.py`, `evaluation_questions.csv`, `knowledge_base/`, `test_questions.csv`, `failure_case_report.md`, `README.md`, and `PROJECT_REPORT.md` | The course submission surface is complete |
+| Required files present | Pass | `python scripts/audit_submission.py` passed all 17 checks, including `rag_system.py`, `evaluation_questions.csv`, `knowledge_base/`, `test_questions.csv`, `failure_case_report.md`, `README.md`, and `PROJECT_REPORT.md` | The course submission surface is complete |
 
 ## Resume Project Review
 
@@ -35,7 +35,7 @@ This repository is a prototype NLP course project rather than a production syste
 
 - The strongest validated runtime on this machine is the offline TF-IDF path, not the dense ChromaDB plus GPT-4o-mini path. That is acceptable for a prototype, but it limits how strongly the dense/OpenAI path can be claimed in an interview without additional runtime proof.
 - Abstention is now reliable on the current benchmark run, but the project still depends heavily on retrieval quality for answerable questions.
-- Some topic areas remain weak on retrieval, especially `rag` (`Recall@3 = 0.25`) and `chromadb_vector_search` / `neural_networks` (`Recall@3 = 0.75` each).
+- Some topic areas remain weak on retrieval, especially `rag` (`Recall@3 = 0.00`), `chromadb_vector_search` (`Recall@3 = 0.50`), and `evaluation_metrics` (`Recall@3 = 0.67`).
 - The project is polished for a class submission and a local demo, but it is still a prototype. It does not yet demonstrate production concerns such as deployment, observability, or sustained runtime validation of the dense/OpenAI path on this machine.
 
 ### Practical Hiring-Manager Verdict
@@ -49,6 +49,7 @@ make smoke
 make test
 make evaluate-offline
 python scripts/audit_submission.py
+python scripts/package_submission.py
 ```
 
 ## Test Results
@@ -71,16 +72,19 @@ python scripts/audit_submission.py
   - Faithfulness: 0.91
   - Citation validity rate: 1.00
   - Abstention accuracy (unanswerable): 1.00
-  - Average latency: 1.53 ms
+  - Average latency: 1.51 ms
 - `python scripts/audit_submission.py`: **PASS**
-  - Passed all 15 checks
+  - Passed all 17 checks
   - Verified required files, required CSV columns, Chroma code path markers, MiniLM marker, GPT-4o-mini marker, offline fallback markers, and the real local smoke command
+- `python scripts/package_submission.py`: **PASS**
+  - Re-ran the audit successfully
+  - Produced `dist/NLP-Final-Project-submission.zip`
 
 ### Validation Caveats
 
 - The current M1-validated path is the offline-safe TF-IDF configuration.
 - Dense retrieval and GPT-4o-mini are implemented and auditable, but they were not the main exercised runtime in this validation pass because the environment did not provide the optional dense/OpenAI stack.
-- No blocking issues were found in the four required commands, so no code fixes were needed during this pass.
+- No blocking issues were found in the validation and packaging commands, so no code fixes were needed during this pass.
 
 ## Final Recommended Submission Command
 

@@ -8,8 +8,8 @@
   "citation_valid_rate": 1.0,
   "abstention_accuracy_unanswerable": 1.0,
   "false_abstention_rate_answerable": 0.0,
-  "avg_latency_ms": 1.45,
-  "median_latency_ms": 1.29,
+  "avg_latency_ms": 1.51,
+  "median_latency_ms": 1.4,
   "per_topic": {
     "attention": {
       "question_count": 3,

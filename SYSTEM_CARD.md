@@ -34,7 +34,7 @@ The benchmark is the canonical 30-question evaluation set in `evaluation_questio
 
 ## 9. Metrics reported
 
-The current validated offline benchmark reports 30 questions total, with 24 answerable and 6 out-of-scope. Reported metrics are Retrieval Recall@3 of 0.88, MRR@3 of 0.69, faithfulness of 0.91, citation validity of 1.00, abstention accuracy on unanswerable questions of 1.00, average latency of 1.53 ms, and median latency of 1.34 ms.
+The current validated offline benchmark reports 30 questions total, with 24 answerable and 6 out-of-scope. Reported metrics are Retrieval Recall@3 of 0.88, MRR@3 of 0.69, faithfulness of 0.91, citation validity of 1.00, abstention accuracy on unanswerable questions of 1.00, average latency of 1.51 ms, and median latency of 1.40 ms.
 
 ## 10. Known limitations
 
