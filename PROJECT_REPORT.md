@@ -143,7 +143,17 @@ The current offline benchmark abstained correctly on all 6 unanswerable question
 
 These examples are documented in more detail in `failure_case_report.md`.
 
-## 11. Lessons Learned
+## 11. Limitations
+
+This project is intentionally scoped as a local course prototype, and several limitations remain:
+
+- The strongest validated runtime is the offline TF-IDF retrieval path, not the optional dense ChromaDB + MiniLM path.
+- The optional OpenAI generation path exists in code, but it is not required for offline validation and depends on external credentials and SDK availability.
+- Retrieval quality remains the main bottleneck on some answerable questions, especially paraphrased and multi-hop prompts where the expected source is not always retrieved in the top 3.
+- The knowledge base is deliberately compact and course-specific, so the system should not be treated as a general-purpose question answering assistant.
+- The project prioritizes local reproducibility and transparent evaluation over deployment, observability, and production hardening.
+
+## 12. Lessons Learned
 
 Three lessons stood out during this project:
 
