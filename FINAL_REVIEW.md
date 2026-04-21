@@ -72,7 +72,7 @@ python scripts/package_submission.py
   - Faithfulness: 0.91
   - Citation validity rate: 1.00
   - Abstention accuracy (unanswerable): 1.00
-  - Average latency: 1.51 ms
+  - Average latency: 1.54 ms
 - `python scripts/audit_submission.py`: **PASS**
   - Passed all 17 checks
   - Verified required files, required CSV columns, Chroma code path markers, MiniLM marker, GPT-4o-mini marker, offline fallback markers, and the real local smoke command

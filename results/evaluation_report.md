@@ -11,8 +11,8 @@
 - Citation valid rate: 1.00
 - Abstention accuracy (unanswerable): 1.0
 - False abstention rate (answerable): 0.0
-- Average latency (ms): 1.51
-- Median latency (ms): 1.40
+- Average latency (ms): 1.54
+- Median latency (ms): 1.48
 
 ## Topic Breakdown
 

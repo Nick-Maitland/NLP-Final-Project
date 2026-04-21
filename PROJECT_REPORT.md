@@ -108,8 +108,8 @@ That command reads only from `evaluation_questions.csv`, writes the scored artif
 | Faithfulness | 0.91 |
 | Citation valid rate | 1.00 |
 | Abstention accuracy (unanswerable) | 1.00 |
-| Average latency (ms) | 1.51 |
-| Median latency (ms) | 1.40 |
+| Average latency (ms) | 1.54 |
+| Median latency (ms) | 1.48 |
 
 These results are promising for a course prototype, but they are not perfect and should not be presented as production-ready.
 

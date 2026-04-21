@@ -237,8 +237,8 @@ The latest scored offline evaluation artifacts are in `results/`. The current ag
 | Faithfulness | 0.91 |
 | Citation validity rate | 1.00 |
 | Abstention accuracy (unanswerable) | 1.00 |
-| Average latency (ms) | 1.51 |
-| Median latency (ms) | 1.40 |
+| Average latency (ms) | 1.54 |
+| Median latency (ms) | 1.48 |
 These numbers come from the validated offline run:
 
 ```bash
