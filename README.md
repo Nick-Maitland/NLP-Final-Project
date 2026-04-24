@@ -1,3 +1,16 @@
+## Demo Video
+
+A 2–3 minute screen recording demo is available here:
+
+[Loom Demo: RAG FAQ Answering System](https://www.loom.com/share/b51cd10d08e94829b14335c0b8ea9df1)
+
+The demo shows:
+- knowledge-base inspection
+- source-cited answers on real NLP questions
+- abstention on an out-of-scope question
+- offline evaluation results
+- optional Streamlit UI
+
 # Prototype RAG FAQ Answering System
 
 This repository contains a prototype Retrieval-Augmented Generation (RAG) FAQ system built for Durham College Natural Language Processing Project 10. It keeps the class-required root `rag_system.py` entrypoint, ChromaDB + MiniLM retrieval path, GPT-4o-mini generation path, and course-scored evaluation deliverables, while also adding a clean canonical benchmark file, a stronger portfolio-oriented hybrid retrieval mode, offline-safe execution, and a small optional Streamlit interface.
