@@ -185,9 +185,14 @@ python rag_system.py demo --backend tfidf --llm offline
 The Streamlit UI is documented on purpose as a second local usage story, but it remains optional and is not required for tests, smoke runs, or submission. The app defaults to the offline-safe `tfidf` + `offline` path and surfaces fallback/runtime warnings so it can work as a resume demo without changing the course-facing CLI workflow.
 
 ```bash
-pip install streamlit
-streamlit run app.py
+python -m pip install -r requirements.txt "streamlit>=1.39,<2"
+python -m streamlit run app.py
 ```
+
+Use `python -m streamlit` from the activated project `.venv` so the demo uses the
+same pinned dependency set as the rest of the project. A bare `streamlit` command
+may resolve to Anaconda or another global environment and trigger NumPy/PyArrow
+ABI errors.
 
 The UI lets you:
 

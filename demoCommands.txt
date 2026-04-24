@@ -1,0 +1,11 @@
+python rag_system.py inspect-kb
+
+python rag_system.py --ask "What is self-attention?" --backend tfidf --offline
+
+python rag_system.py --ask "Why are embeddings more useful than one-hot vectors for meaning?" --backend tfidf --offline
+
+python rag_system.py --ask "Who founded PyTorch?" --backend tfidf --offline
+
+python rag_system.py --evaluate --backend tfidf --offline
+
+python -m streamlit run app.py
